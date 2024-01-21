@@ -1,0 +1,7 @@
+[workspace]
+
+members = [
+    "ferris-chess-game",
+    "ferris-chess-board",
+    "ferris-chess-engine",
+]
