@@ -16,6 +16,7 @@ enum Piece {
     King,
 }
 
+#[derive(PartialEq)]
 enum OccupiedStatus {
     OccupiedOwnColor,
     OccupiedOpponentColor,
@@ -177,7 +178,30 @@ impl Board {
             new_positions.push(pos + 16);
         }
 
-        // TODO: Pawn captures, promotion, en-passant
+        let capture_rank_idx = pos / 8 + 1;
+        let file_idx = pos % 8;
+
+        // Left fwd pawn capture
+        let left_file_idx = file_idx as isize - 1;
+        
+        if left_file_idx >= 0 && capture_rank_idx < 8 {
+                let capture_pos = capture_rank_idx * 8 + left_file_idx as usize;
+                if self.get_occupied_status(capture_pos) == OccupiedStatus::OccupiedOpponentColor {
+                    new_positions.push(capture_pos);
+                }
+        }
+
+        // Right fwd pawn capture
+        let right_file_idx = file_idx + 1;
+        
+        if right_file_idx < 8 && capture_rank_idx < 8 {
+                let capture_pos = capture_rank_idx * 8 + right_file_idx;
+                if self.get_occupied_status(capture_pos) == OccupiedStatus::OccupiedOpponentColor {
+                    new_positions.push(capture_pos);
+                }
+        }
+
+        // TODO: Promotion, en-passant
         new_positions
     }
 
@@ -347,8 +371,24 @@ impl Board {
         new_positions
     }
 
-    fn get_king_moves(pos: usize) -> Vec<usize> {
-        todo!()
+    fn get_king_moves(&self, pos: usize) -> Vec<usize> {
+        let mut new_positions: Vec<usize> = vec![];
+        let rank_idx = pos / 8;
+        let file_idx = pos % 8;
+
+        let offsets: [[isize; 2]; 8]= [[1,-1], [1,0], [1,1], [0,-1], [0,1],[-1,-1], [-1,0], [-1,1]];
+        for [rank_offset, file_offset] in offsets {
+            let new_rank = rank_idx as isize + rank_offset;
+            let new_file = file_idx as isize + file_offset;
+            if new_rank >= 0 && new_rank < 8 && new_file >= 0 && new_file < 8 {
+                let new_pos = new_rank as usize * 8 + new_file as usize;
+                match self.get_occupied_status(new_pos) {
+                    OccupiedStatus::OccupiedOwnColor => (),
+                    _ => new_positions.push(new_pos),
+                }
+            }
+        }
+        new_positions 
     }
 
     pub fn get_valid_moves(&self) -> Vec<MoveData> {
@@ -363,7 +403,7 @@ impl Board {
                 (_, Piece::Knight) => self.get_knight_moves(position.0),
                 (_, Piece::Bishop) => self.get_bishop_moves(position.0),
                 (_, Piece::Queen) => self.get_queen_moves(position.0),
-                (_, Piece::King) => vec![],
+                (_, Piece::King) => self.get_king_moves(position.0),
             };
             for target in move_targets {
                 moves.push(MoveData { 
