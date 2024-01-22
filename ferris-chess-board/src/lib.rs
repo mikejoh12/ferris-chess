@@ -250,13 +250,29 @@ impl Board {
         new_positions
     }
 
-    fn get_knight_moves(pos: usize) -> Vec<usize> {
-        todo!()
+    fn get_knight_moves(&self, pos: usize) -> Vec<usize> {
+        let mut new_positions: Vec<usize> = vec![];
+        let rank_idx = pos / 8;
+        let file_idx = pos % 8;
+
+        let offsets: [[isize; 2]; 8] = [[2, -1], [2, 1], [1, 2], [-1, 2], [-2, 1], [-2, -1], [-1, -2], [1, -2]];
+        for [rank_offset, file_offset] in offsets {
+            let new_rank = rank_idx as isize + rank_offset;
+            let new_file = file_idx as isize + file_offset;
+            if new_rank >= 0 && new_rank < 8 && new_file >= 0 && new_file < 8 {
+                let new_pos = new_rank as usize * 8 + new_file as usize;
+                match self.get_occupied_status(new_pos) {
+                    OccupiedStatus::OccupiedOwnColor => (),
+                    _ => new_positions.push(new_pos),
+                }
+            }
+        }
+
+        new_positions
     }
 
     fn get_bishop_rays(&self, pos: usize) -> Vec<Vec<usize>> {
         let mut bishop_rays: Vec<Vec<usize>> = vec![];
-        let file_idx = pos % 8;
 
         let mut down_left: Vec<usize> = vec![];
         let mut down_left_pos = pos.checked_sub(9);
@@ -344,7 +360,7 @@ impl Board {
                 (Color::White, Piece::Pawn) => self.get_white_pawn_moves(position.0),
                 (Color::Black, Piece::Pawn) => self.get_black_pawn_moves(position.0),
                 (_, Piece::Rook) => self.get_rook_moves(position.0),
-                (_, Piece::Knight) => vec![],
+                (_, Piece::Knight) => self.get_knight_moves(position.0),
                 (_, Piece::Bishop) => self.get_bishop_moves(position.0),
                 (_, Piece::Queen) => self.get_queen_moves(position.0),
                 (_, Piece::King) => vec![],
