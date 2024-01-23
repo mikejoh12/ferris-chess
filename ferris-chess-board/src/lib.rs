@@ -6,7 +6,7 @@ enum Color {
     Black,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 enum Piece {
     Pawn,
     Rook,
@@ -46,13 +46,13 @@ pub enum GameStatus {
 #[derive(Debug)]
 pub struct Board {
     pub game_status: GameStatus,
-    is_white_to_move: bool,
+    pub is_white_to_move: bool,
     move_count: u32,
     data: [Option<(Color, Piece)>; 64],
-    can_castle_white_king_side: bool,
-    can_castle_white_queen_side: bool,
-    can_castle_black_king_side: bool,
-    can_castle_black_queen_side: bool,
+    _can_castle_white_king_side: bool,
+    _can_castle_white_queen_side: bool,
+    _can_castle_black_king_side: bool,
+    _can_castle_black_queen_side: bool,
 }
 
 impl Board {
@@ -82,10 +82,10 @@ impl Board {
             move_count: 1,
             is_white_to_move: true,
             data,
-            can_castle_white_king_side: false,
-            can_castle_white_queen_side: false,
-            can_castle_black_king_side: false,
-            can_castle_black_queen_side: false,
+            _can_castle_white_king_side: false,
+            _can_castle_white_queen_side: false,
+            _can_castle_black_king_side: false,
+            _can_castle_black_queen_side: false,
             game_status: GameStatus::Ongoing,
         }
     }
@@ -118,6 +118,16 @@ impl Board {
         println!("  --------\n  abcdefgh\n");
     }
 
+    pub fn print_moves(&self, moves: &Vec<MoveData>) {
+        println!("Available moves ({}):", moves.len());
+        for positions in moves {
+            let from = self.get_square_from_idx(positions.start_pos);
+            let to = self.get_square_from_idx(positions.end_pos);
+            print!("{}{} ", from, to);
+        }
+        println!("\n");
+    }
+
     fn is_unoccupied(&self, pos: usize) -> bool {
         if let Some(_) = self.data[pos] {
             return false;
@@ -137,10 +147,126 @@ impl Board {
         }
     }
 
+    fn is_position_threatened(&self, pos: usize) -> bool {
+        let opponent_color = match self.is_white_to_move {
+            true => Color::Black,
+            false => Color::White,
+        };
+        
+        // Rook and queen threat
+        for ray in self.get_rook_rays(pos) {
+            for ray_pos in ray {
+                match self.data[ray_pos] {
+                    Some(piece) => {
+                        match (piece.0 == opponent_color, piece.1) {
+                            (true, Piece::Rook) => return true,
+                            (true, Piece::Queen) => return true,
+                            _ => break,
+                        }
+                    },
+                    None => (),
+                }
+            }
+        }
+
+        // Bishop and queen threat
+        for ray in self.get_bishop_rays(pos) {
+            for ray_pos in ray {
+                match self.data[ray_pos] {
+                    Some(piece) => {
+                        match (piece.0 == opponent_color, piece.1) {
+                            (true, Piece::Bishop) => return true,
+                            (true, Piece::Queen) => return true,
+                            _ => break,
+                        }
+                    },
+                    None => (),
+                }
+            }     
+        }
+
+        // Knight threat
+        for threat_position in self.get_knight_targets(pos) {
+            match self.data[threat_position] {
+                Some(piece) => {
+                    match (piece.0 == opponent_color, piece.1) {
+                        (true, Piece::Knight) => return true,
+                        _ => (),
+                    }
+                },
+                None => (),
+            }      
+        }
+
+        // Pawn threat
+        if self.is_white_to_move && self.is_position_threatened_by_black_pawn(pos) {
+            return true
+        }
+
+        if !self.is_white_to_move && self.is_position_threatened_by_white_pawn(pos) {
+            return true
+        }
+
+        // Opposite king threat
+        let neighbor_positions = self.get_neighbor_positions(pos);
+        for neighbor_pos in neighbor_positions {
+            if self.data[neighbor_pos] == Some((opponent_color, Piece::King)) {
+                return false
+            }
+        }
+
+        false
+    }
+
+    fn is_position_threatened_by_white_pawn(&self, pos: usize) -> bool {
+        let rank_idx = pos as isize / 8;
+        let file_idx = pos as isize % 8;
+
+        if file_idx - 1 >= 0 && rank_idx - 1 >= 1 {
+            let left_down_pos = (rank_idx - 1) as usize * 8 + (file_idx - 1) as usize;
+            if self.data[left_down_pos] == Some((Color::White, Piece::Pawn)) {
+                return true
+            }
+        }
+
+        if file_idx + 1 < 8 && rank_idx - 1 >= 1 {
+            let right_down_pos = (rank_idx - 1) as usize * 8 + (file_idx + 1) as usize;
+            if self.data[right_down_pos] == Some((Color::White, Piece::Pawn)) {
+                return true
+            }
+        } 
+
+        false
+    }
+
+    fn is_position_threatened_by_black_pawn(&self, pos: usize) -> bool {
+        let rank_idx = pos as usize / 8;
+        let file_idx = pos as isize % 8;
+
+        if file_idx - 1 >= 0 && rank_idx + 1 < 7 {
+            let left_up_pos = (rank_idx + 1) * 8 + file_idx as usize - 1;
+            if self.data[left_up_pos] == Some((Color::Black, Piece::Pawn)) {
+                return true
+            }
+        }
+
+        if file_idx + 1 < 8 && rank_idx + 1 < 7 {
+            let right_up_pos = (rank_idx + 1) * 8 + file_idx as usize + 1;
+            if self.data[right_up_pos] == Some((Color::Black, Piece::Pawn)) {
+                return true
+            }
+        } 
+
+        false
+    }
+
     pub fn make_move(&mut self, instr: &MoveData) {
         if let Some(piece) = self.data[instr.start_pos] {
             self.data[instr.end_pos] = Some(piece);
             self.data[instr.start_pos] = None;
+        }
+        if !self.is_white_to_move {
+            self.move_count += 1;
         }
         self.is_white_to_move = !self.is_white_to_move;
     }
@@ -214,7 +340,7 @@ impl Board {
             new_positions.push(pos - 16);
         }
 
-        // TODO: Pawn captures, promotion, en-passant
+        // TODO: Pawn promotion, en-passant
         new_positions
     }
 
@@ -274,8 +400,8 @@ impl Board {
         new_positions
     }
 
-    fn get_knight_moves(&self, pos: usize) -> Vec<usize> {
-        let mut new_positions: Vec<usize> = vec![];
+    fn get_knight_targets(&self, pos: usize) -> Vec<usize> {
+        let mut targets: Vec<usize> = vec![];
         let rank_idx = pos / 8;
         let file_idx = pos % 8;
 
@@ -285,11 +411,21 @@ impl Board {
             let new_file = file_idx as isize + file_offset;
             if new_rank >= 0 && new_rank < 8 && new_file >= 0 && new_file < 8 {
                 let new_pos = new_rank as usize * 8 + new_file as usize;
-                match self.get_occupied_status(new_pos) {
-                    OccupiedStatus::OccupiedOwnColor => (),
-                    _ => new_positions.push(new_pos),
-                }
+                targets.push(new_pos);
             }
+        }
+
+        targets
+    }
+
+    fn get_knight_moves(&self, pos: usize) -> Vec<usize> {
+        let mut new_positions: Vec<usize> = vec![];
+
+        for target in self.get_knight_targets(pos) {
+            match self.get_occupied_status(target) {
+                OccupiedStatus::OccupiedOwnColor => (),
+                _ => new_positions.push(target),
+            }     
         }
 
         new_positions
@@ -371,7 +507,7 @@ impl Board {
         new_positions
     }
 
-    fn get_king_moves(&self, pos: usize) -> Vec<usize> {
+    fn get_neighbor_positions(&self, pos: usize) -> Vec<usize> {
         let mut new_positions: Vec<usize> = vec![];
         let rank_idx = pos / 8;
         let file_idx = pos % 8;
@@ -382,16 +518,49 @@ impl Board {
             let new_file = file_idx as isize + file_offset;
             if new_rank >= 0 && new_rank < 8 && new_file >= 0 && new_file < 8 {
                 let new_pos = new_rank as usize * 8 + new_file as usize;
-                match self.get_occupied_status(new_pos) {
-                    OccupiedStatus::OccupiedOwnColor => (),
-                    _ => new_positions.push(new_pos),
-                }
+                new_positions.push(new_pos);
+            }
+        }
+        new_positions   
+    }
+
+    fn get_king_moves(&self, pos: usize) -> Vec<usize> {
+        let mut new_positions: Vec<usize> = vec![];
+        let neighbor_positions = self.get_neighbor_positions(pos);
+
+        for neighbor_pos in neighbor_positions {
+            match self.get_occupied_status(neighbor_pos) {
+                OccupiedStatus::OccupiedOwnColor => (),
+                _ => new_positions.push(neighbor_pos),
             }
         }
         new_positions 
     }
 
-    pub fn get_valid_moves(&self) -> Vec<MoveData> {
+    fn get_king_pos(&self) -> usize {
+        let target_color = match self.is_white_to_move {
+            true => Color::White,
+            false => Color::Black,
+        };
+        match self.data.iter().position(|&p|p == Some((target_color, Piece::King))) {
+            Some(v) => return v,
+            None => panic!("A valid board should always have 2 kings"),
+        }
+    }
+
+    fn is_legal_move(&mut self, move_data: &MoveData) -> bool {
+        let temp = self.data[move_data.end_pos];
+        self.data[move_data.end_pos] = self.data[move_data.start_pos];
+        self.data[move_data.start_pos] = None;
+
+        let is_legal = !self.is_position_threatened(self.get_king_pos());
+
+        self.data[move_data.start_pos] = self.data[move_data.end_pos];
+        self.data[move_data.end_pos] = temp;
+        is_legal
+    }
+
+    pub fn get_valid_moves(&mut self) -> Vec<MoveData> {
         let mut moves: Vec<MoveData> = vec![];
         let positions = self.get_potential_move_positions();
 
@@ -406,11 +575,31 @@ impl Board {
                 (_, Piece::King) => self.get_king_moves(position.0),
             };
             for target in move_targets {
-                moves.push(MoveData { 
-                    start_pos: position.0, end_pos: target });
+
+                // Validate a move so that current player is not in check after move - TODO
+                let m = MoveData { start_pos: position.0, end_pos: target };
+
+                if self.is_legal_move(&m) {
+                    moves.push(m);
+                }
             }
         }
+
+        if moves.is_empty() {
+            self.update_game_status()
+        }
+
         moves
+    }
+
+    fn update_game_status(&mut self) {
+        let king_pos = self.get_king_pos();
+        let is_mated = self.is_position_threatened(king_pos);
+        self.game_status = match (is_mated, self.is_white_to_move) {
+            (true, true) => GameStatus::BlackWin,
+            (true, false) => GameStatus::WhiteWin,
+            _ => GameStatus::StaleMate,
+        }
     }
 }
 
