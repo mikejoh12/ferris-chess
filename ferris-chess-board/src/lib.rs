@@ -47,45 +47,80 @@ pub enum GameStatus {
 pub struct Board {
     pub game_status: GameStatus,
     pub is_white_to_move: bool,
-    move_count: u32,
     data: [Option<(Color, Piece)>; 64],
-    _can_castle_white_king_side: bool,
-    _can_castle_white_queen_side: bool,
-    _can_castle_black_king_side: bool,
-    _can_castle_black_queen_side: bool,
+    can_castle_w_king_side: bool,
+    can_castle_w_queen_side: bool,
+    can_castle_b_king_side: bool,
+    can_castle_b_queen_side: bool,
+    half_moves: usize,
+    full_moves: usize,
 }
 
 impl Board {
-    pub fn new() -> Self {
+
+    // Starting pos: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    pub fn from_fen(fen: &str) -> Self {
         let mut data: [Option<(Color, Piece)>; 64] = [None; 64];
-        for i in 0..8 {
-            data[8 + i] = Some((Color::White, Piece::Pawn));
-            data[8 * 6 + i] = Some((Color::Black, Piece::Pawn));
+        let mut sections = fen.split(" ");
+        let pieces = sections.next().expect("Invalid FEN string - piece positioning");
+        
+        let mut idx: usize = 56;
+        for row in pieces.split("/") {
+            for c in row.chars() {
+                if c.is_ascii_digit() {
+                    idx += c.to_digit(10).expect("Should parse as digit") as usize;
+                } else {
+                    let piece = match c {
+                        'P' => (Color::White, Piece::Pawn),
+                        'N' => (Color::White, Piece::Knight),
+                        'B' => (Color::White, Piece::Bishop),
+                        'R' => (Color::White, Piece::Rook),
+                        'Q' => (Color::White, Piece::Queen),
+                        'K' => (Color::White, Piece::King),
+                        'p' => (Color::Black, Piece::Pawn),
+                        'n' => (Color::Black, Piece::Knight),
+                        'b' => (Color::Black, Piece::Bishop),
+                        'r' => (Color::Black, Piece::Rook),
+                        'q' => (Color::Black, Piece::Queen),
+                        'k' => (Color::Black, Piece::King),
+                        _ => panic!("FEN string invalid"),
+                    };
+                    data[idx] = Some(piece);
+                    idx += 1;
+                }
+            }
+            idx = idx.saturating_sub(16);
         }
-        data[0] = Some((Color::White, Piece::Rook));
-        data[1] = Some((Color::White, Piece::Knight));
-        data[2] = Some((Color::White, Piece::Bishop));
-        data[3] = Some((Color::White, Piece::Queen));
-        data[4] = Some((Color::White, Piece::King));
-        data[5] = Some((Color::White, Piece::Bishop));
-        data[6] = Some((Color::White, Piece::Knight));
-        data[7] = Some((Color::White, Piece::Rook));
-        data[56] = Some((Color::Black, Piece::Rook));
-        data[57] = Some((Color::Black, Piece::Knight));
-        data[58] = Some((Color::Black, Piece::Bishop));
-        data[59] = Some((Color::Black, Piece::Queen));
-        data[60] = Some((Color::Black, Piece::King));
-        data[61] = Some((Color::Black, Piece::Bishop));
-        data[62] = Some((Color::Black, Piece::Knight));
-        data[63] = Some((Color::Black, Piece::Rook));
+
+        let side_to_move = sections.next().expect("Invalid FEN string - side to move");
+        let is_white_to_move = match side_to_move {
+            "w" => true,
+            "b" => false,
+            _ => panic!("FEN string side to move data invalid"),
+        };
+
+        let castling_rights = sections.next().expect("Invalid FEN string - castling rights");
+        let can_castle_w_king_side = castling_rights.contains("K");
+        let can_castle_w_queen_side = castling_rights.contains("Q");
+        let can_castle_b_king_side = castling_rights.contains("k");
+        let can_castle_b_queen_side = castling_rights.contains("q");
+
+        let en_passant_target = sections.next().expect("Invalid FEN string - en passant");
+        // TODO
+
+        let half_moves: usize = sections.next().expect("Invalid FEN string - half move clock").parse().expect("Half move clock should parse");
+
+        let full_moves: usize = sections.next().expect("Invalid FEN string - full move counter").parse().expect("Full move counter should parse");
+
         Board {
-            move_count: 1,
-            is_white_to_move: true,
+            is_white_to_move,
             data,
-            _can_castle_white_king_side: false,
-            _can_castle_white_queen_side: false,
-            _can_castle_black_king_side: false,
-            _can_castle_black_queen_side: false,
+            can_castle_w_king_side,
+            can_castle_w_queen_side,
+            can_castle_b_king_side,
+            can_castle_b_queen_side,
+            half_moves,
+            full_moves,
             game_status: GameStatus::Ongoing,
         }
     }
@@ -104,7 +139,7 @@ impl Board {
                         (Color::White, Piece::King) => print!("K"),
                         (Color::Black, Piece::Pawn) => print!("p"),
                         (Color::Black, Piece::Rook) => print!("r"),
-                        (Color::Black, Piece::Knight) => print!("k"),
+                        (Color::Black, Piece::Knight) => print!("n"),
                         (Color::Black, Piece::Bishop) => print!("b"),
                         (Color::Black, Piece::Queen) => print!("q"),
                         (Color::Black, Piece::King) => print!("k"),
@@ -116,6 +151,10 @@ impl Board {
             print!("\n");
         }
         println!("  --------\n  abcdefgh\n");
+        println!("Is white to move: {}", self.is_white_to_move);
+        println!("Castling ability -> K: {}, Q: {}, k: {}, q: {}", self.can_castle_w_king_side, self.can_castle_w_queen_side, self.can_castle_b_king_side, self.can_castle_b_queen_side);
+        println!("En passant target square: todo");
+        println!("Halfmove Clock: {} Fullmove counter: {}", self.half_moves, self.full_moves);
     }
 
     pub fn print_moves(&self, moves: &Vec<MoveData>) {
@@ -266,7 +305,7 @@ impl Board {
             self.data[instr.start_pos] = None;
         }
         if !self.is_white_to_move {
-            self.move_count += 1;
+            self.full_moves += 1;
         }
         self.is_white_to_move = !self.is_white_to_move;
     }
