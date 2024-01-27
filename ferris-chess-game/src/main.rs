@@ -1,7 +1,9 @@
 use ferris_chess_board;
 
 fn main() {
-    let mut board = ferris_chess_board::Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    let mut board = ferris_chess_board::Board::from_fen(
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    );
     board.print();
 
     let mut valid_moves = board.get_valid_moves();
@@ -49,5 +51,4 @@ fn main() {
     println!("Game status: {:?}\n", board.game_status);
 
     */
-
 }

@@ -5,3 +5,4 @@ members = [
     "ferris-chess-board",
     "ferris-chess-engine",
 ]
+resolver="2"
