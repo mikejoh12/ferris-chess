@@ -7,7 +7,7 @@ enum Color {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-enum Piece {
+pub enum Piece {
     Pawn,
     Rook,
     Knight,
@@ -25,16 +25,17 @@ enum OccupiedStatus {
 
 #[derive(Debug, PartialEq)]
 pub struct MoveData {
-    start_pos: usize,
-    end_pos: usize,
-    piece: Piece,
-    move_type: MoveType,
+    pub start_pos: usize,
+    pub end_pos: usize,
+    pub piece: Piece,
+    pub move_type: MoveType,
 }
 
 #[derive(Debug, PartialEq)]
-enum MoveType {
+pub enum MoveType {
     Regular,
     Castling,
+    EnPassant,
 }
 
 #[derive(Debug)]
@@ -43,6 +44,28 @@ pub enum GameStatus {
     BlackWin,
     StaleMate,
     Ongoing,
+}
+
+struct Square;
+
+impl Square {
+    // Squares used for en passant targets
+    pub const A3: usize = 16;
+    pub const B3: usize = 17;
+    pub const C3: usize = 18;
+    pub const D3: usize = 19;
+    pub const E3: usize = 20;
+    pub const F3: usize = 21;
+    pub const G3: usize = 22;
+    pub const H3: usize = 23;
+    pub const A6: usize = 40;
+    pub const B6: usize = 41;
+    pub const C6: usize = 42;
+    pub const D6: usize = 43;
+    pub const E6: usize = 44;
+    pub const F6: usize = 45;
+    pub const G6: usize = 46;
+    pub const H6: usize = 47;
 }
 
 #[derive(Debug)]
@@ -54,6 +77,7 @@ pub struct Board {
     can_castle_w_queen_side: bool,
     can_castle_b_king_side: bool,
     can_castle_b_queen_side: bool,
+    en_passant_target: Option<usize>,
     half_moves: usize,
     full_moves: usize,
 }
@@ -110,8 +134,27 @@ impl Board {
         let can_castle_b_king_side = castling_rights.contains("k");
         let can_castle_b_queen_side = castling_rights.contains("q");
 
-        let en_passant_target = sections.next().expect("Invalid FEN string - en passant");
-        // TODO
+        let en_passant_target_str = sections.next().expect("Invalid FEN string - en passant");
+        let en_passant_target = match en_passant_target_str {
+            "-" => None,
+            "a3" => Some(Square::A3),
+            "b3" => Some(Square::B3),
+            "c3" => Some(Square::C3),
+            "d3" => Some(Square::D3),
+            "e3" => Some(Square::E3),
+            "f3" => Some(Square::F3),
+            "g3" => Some(Square::G3),
+            "h3" => Some(Square::H3),
+            "a6" => Some(Square::A6),
+            "b6" => Some(Square::B6),
+            "c6" => Some(Square::C6),
+            "d6" => Some(Square::D6),
+            "e6" => Some(Square::E6),
+            "f6" => Some(Square::F6),
+            "g6" => Some(Square::G6),
+            "h6" => Some(Square::H6),
+            _ => panic!("Invalid FEN string - en passant"),
+        };
 
         let half_moves: usize = sections
             .next()
@@ -132,6 +175,7 @@ impl Board {
             can_castle_w_queen_side,
             can_castle_b_king_side,
             can_castle_b_queen_side,
+            en_passant_target,
             half_moves,
             full_moves,
             game_status: GameStatus::Ongoing,
@@ -172,7 +216,7 @@ impl Board {
             self.can_castle_b_king_side,
             self.can_castle_b_queen_side
         );
-        println!("En passant target square: todo");
+        println!("En passant target square: {:?}", self.en_passant_target);
         println!(
             "Halfmove Clock: {} Fullmove counter: {}",
             self.half_moves, self.full_moves
@@ -324,6 +368,17 @@ impl Board {
             self.full_moves += 1;
         }
 
+        // En passant
+        if instr.piece == Piece::Pawn && instr.start_pos.abs_diff(instr.end_pos) == 16 {
+            self.en_passant_target = match self.is_white_to_move {
+                true => Some(instr.start_pos + 8),
+                false => Some(instr.start_pos - 8),
+            }
+        } else {
+            self.en_passant_target = None;
+        }
+
+        // Castling
         if instr.piece == Piece::King {
             if self.is_white_to_move {
                 self.can_castle_w_king_side = false;
@@ -377,7 +432,7 @@ impl Board {
         files[file_idx].to_owned() + &rank.to_string()
     }
 
-    fn get_white_pawn_moves(&self, pos: usize) -> Vec<MoveData> {
+    fn get_white_pawn_moves(&mut self, pos: usize) -> Vec<MoveData> {
         let mut new_positions: Vec<MoveData> = vec![];
         if pos + 8 < 64 && self.is_unoccupied(pos + 8) {
             new_positions.push(MoveData {
@@ -399,7 +454,7 @@ impl Board {
         let capture_rank_idx = pos / 8 + 1;
         let file_idx = pos % 8;
 
-        // Left fwd pawn capture
+        // Left up pawn capture (looking at board from White's position)
         let left_file_idx = file_idx as isize - 1;
 
         if left_file_idx >= 0 && capture_rank_idx < 8 {
@@ -411,10 +466,19 @@ impl Board {
                     piece: Piece::Pawn,
                     move_type: MoveType::Regular,
                 });
+            } else if let Some(i) = self.en_passant_target {
+                if i == capture_pos {
+                    new_positions.push(MoveData {
+                        start_pos: pos,
+                        end_pos: capture_pos,
+                        piece: Piece::Pawn,
+                        move_type: MoveType::EnPassant,
+                    });
+                }
             }
         }
 
-        // Right fwd pawn capture
+        // Right up pawn capture (looking at board from White's position)
         let right_file_idx = file_idx + 1;
 
         if right_file_idx < 8 && capture_rank_idx < 8 {
@@ -424,8 +488,17 @@ impl Board {
                     start_pos: pos,
                     end_pos: capture_pos,
                     piece: Piece::Pawn,
-                    move_type: MoveType::Regular
+                    move_type: MoveType::Regular,
                 });
+            } else if let Some(i) = self.en_passant_target {
+                if i == capture_pos {
+                    new_positions.push(MoveData {
+                        start_pos: pos,
+                        end_pos: capture_pos,
+                        piece: Piece::Pawn,
+                        move_type: MoveType::EnPassant,
+                    });
+                }
             }
         }
 
@@ -452,8 +525,58 @@ impl Board {
             });
         }
 
-        // TODO: Left fwd black pawn capture
-        // TODO: Right fwd black pawn capture
+        // Pawn captures
+        let capture_rank_idx = pos as isize / 8 - 1;
+        let file_idx = pos % 8;
+
+        // Left down pawn capture (looking at board from White's position)
+        let left_file_idx = file_idx as isize - 1;
+
+        if left_file_idx >= 0 && capture_rank_idx >= 0 {
+            let capture_pos = (capture_rank_idx * 8 + left_file_idx) as usize;
+            if self.get_occupied_status(capture_pos) == OccupiedStatus::OccupiedOpponentColor {
+                new_positions.push(MoveData {
+                    start_pos: pos,
+                    end_pos: capture_pos,
+                    piece: Piece::Pawn,
+                    move_type: MoveType::Regular,
+                });
+            } else if let Some(i) = self.en_passant_target {
+                if i == capture_pos {
+                    new_positions.push(MoveData {
+                        start_pos: pos,
+                        end_pos: capture_pos,
+                        piece: Piece::Pawn,
+                        move_type: MoveType::EnPassant,
+                    });
+                }
+            }
+        }
+
+        // Right down pawn capture (looking at board from White's position)
+        let right_file_idx = file_idx + 1;
+
+        if right_file_idx < 8 && capture_rank_idx >= 0 {
+            let capture_pos = capture_rank_idx as usize * 8 + right_file_idx;
+            if self.get_occupied_status(capture_pos) == OccupiedStatus::OccupiedOpponentColor {
+                new_positions.push(MoveData {
+                    start_pos: pos,
+                    end_pos: capture_pos,
+                    piece: Piece::Pawn,
+                    move_type: MoveType::Regular,
+                });
+            } else if let Some(i) = self.en_passant_target {
+                if i == capture_pos {
+                    new_positions.push(MoveData {
+                        start_pos: pos,
+                        end_pos: capture_pos,
+                        piece: Piece::Pawn,
+                        move_type: MoveType::EnPassant,
+                    });
+                }
+            }
+        }
+
         // TODO: Pawn promotion, en-passant
         new_positions
     }
@@ -722,24 +845,56 @@ impl Board {
 
         if self.is_white_to_move {
             if self.can_castle_w_queen_side {
-                if [1,2,3].iter().all(|s|self.data[*s] == None) && [2,3,4].iter().all(|s|!self.is_position_threatened(*s)) {
-                    moves.push(MoveData { start_pos: 4, end_pos: 2, piece: Piece::King, move_type: MoveType::Castling })
+                if [1, 2, 3].iter().all(|s| self.data[*s] == None)
+                    && [2, 3, 4].iter().all(|s| !self.is_position_threatened(*s))
+                {
+                    moves.push(MoveData {
+                        start_pos: 4,
+                        end_pos: 2,
+                        piece: Piece::King,
+                        move_type: MoveType::Castling,
+                    })
                 }
             }
             if self.can_castle_w_king_side {
-                if [5,6].iter().all(|s|self.data[*s] == None) && [4,5,6].iter().all(|s|!self.is_position_threatened(*s)) {
-                    moves.push(MoveData { start_pos: 4, end_pos: 6, piece: Piece::King, move_type: MoveType::Castling })
+                if [5, 6].iter().all(|s| self.data[*s] == None)
+                    && [4, 5, 6].iter().all(|s| !self.is_position_threatened(*s))
+                {
+                    moves.push(MoveData {
+                        start_pos: 4,
+                        end_pos: 6,
+                        piece: Piece::King,
+                        move_type: MoveType::Castling,
+                    })
                 }
             }
         } else {
             if self.can_castle_b_queen_side {
-                if [57,58,59].iter().all(|s|self.data[*s] == None) && [58,59,60].iter().all(|s|!self.is_position_threatened(*s)) {
-                    moves.push(MoveData { start_pos: 60, end_pos: 58, piece: Piece::King, move_type: MoveType::Castling })
+                if [57, 58, 59].iter().all(|s| self.data[*s] == None)
+                    && [58, 59, 60]
+                        .iter()
+                        .all(|s| !self.is_position_threatened(*s))
+                {
+                    moves.push(MoveData {
+                        start_pos: 60,
+                        end_pos: 58,
+                        piece: Piece::King,
+                        move_type: MoveType::Castling,
+                    })
                 }
             }
             if self.can_castle_b_king_side {
-                if [61,62].iter().all(|s|self.data[*s] == None) && [60,61,62].iter().all(|s|!self.is_position_threatened(*s)) {
-                    moves.push(MoveData { start_pos: 60, end_pos: 62, piece: Piece::King, move_type: MoveType::Castling })
+                if [61, 62].iter().all(|s| self.data[*s] == None)
+                    && [60, 61, 62]
+                        .iter()
+                        .all(|s| !self.is_position_threatened(*s))
+                {
+                    moves.push(MoveData {
+                        start_pos: 60,
+                        end_pos: 62,
+                        piece: Piece::King,
+                        move_type: MoveType::Castling,
+                    })
                 }
             }
         }
@@ -817,33 +972,111 @@ mod tests {
 
     #[test]
     fn castling_allowed_white_both_sides() {
-        let mut board = Board::from_fen("r3k2r/ppp1nppp/2nbbq2/3pp3/3PP3/2NBBQ2/PPP1NPPP/R3K2R w KQkq - 10 8");
+        let mut board =
+            Board::from_fen("r3k2r/ppp1nppp/2nbbq2/3pp3/3PP3/2NBBQ2/PPP1NPPP/R3K2R w KQkq - 10 8");
         let result = board.get_valid_moves();
-        assert!(result.contains(&MoveData { start_pos: 4, end_pos: 2, piece: Piece::King, move_type: MoveType::Castling }));
-        assert!(result.contains(&MoveData { start_pos: 4, end_pos: 6, piece: Piece::King, move_type: MoveType::Castling }));
+        assert!(result.contains(&MoveData {
+            start_pos: 4,
+            end_pos: 2,
+            piece: Piece::King,
+            move_type: MoveType::Castling
+        }));
+        assert!(result.contains(&MoveData {
+            start_pos: 4,
+            end_pos: 6,
+            piece: Piece::King,
+            move_type: MoveType::Castling
+        }));
     }
 
     #[test]
     fn castling_allowed_black_both_sides() {
-        let mut board = Board::from_fen("r3k2r/ppp1nppp/2nbbq2/3pp3/3PP3/P1NBBQ2/1PP1NPPP/R3K2R b KQkq - 0 8");
+        let mut board =
+            Board::from_fen("r3k2r/ppp1nppp/2nbbq2/3pp3/3PP3/P1NBBQ2/1PP1NPPP/R3K2R b KQkq - 0 8");
         let result = board.get_valid_moves();
-        assert!(result.contains(&MoveData { start_pos: 60, end_pos: 58, piece: Piece::King, move_type: MoveType::Castling }));
-        assert!(result.contains(&MoveData { start_pos: 60, end_pos: 62, piece: Piece::King, move_type: MoveType::Castling }));
+        assert!(result.contains(&MoveData {
+            start_pos: 60,
+            end_pos: 58,
+            piece: Piece::King,
+            move_type: MoveType::Castling
+        }));
+        assert!(result.contains(&MoveData {
+            start_pos: 60,
+            end_pos: 62,
+            piece: Piece::King,
+            move_type: MoveType::Castling
+        }));
     }
 
     #[test]
     fn no_white_castling_king_crosses_attack_has_castling_rights() {
         let mut board = Board::from_fen("4k3/8/8/3r1r2/8/8/8/R3K2R w KQ - 1 1");
         let result = board.get_valid_moves();
-        assert!(!result.contains(&MoveData { start_pos: 4, end_pos: 2, piece: Piece::King, move_type: MoveType::Castling }));
-        assert!(!result.contains(&MoveData { start_pos: 4, end_pos: 6, piece: Piece::King, move_type: MoveType::Castling }));
+        assert!(!result.contains(&MoveData {
+            start_pos: 4,
+            end_pos: 2,
+            piece: Piece::King,
+            move_type: MoveType::Castling
+        }));
+        assert!(!result.contains(&MoveData {
+            start_pos: 4,
+            end_pos: 6,
+            piece: Piece::King,
+            move_type: MoveType::Castling
+        }));
     }
 
     #[test]
     fn no_black_castling_king_crosses_attack_has_castling_rights() {
         let mut board = Board::from_fen("r3k2r/8/8/8/3R1R2/8/8/4K3 b kq - 1 1");
         let result = board.get_valid_moves();
-        assert!(!result.contains(&MoveData { start_pos: 60, end_pos: 58, piece: Piece::King, move_type: MoveType::Castling }));
-        assert!(!result.contains(&MoveData { start_pos: 60, end_pos: 62, piece: Piece::King, move_type: MoveType::Castling }));
+        assert!(!result.contains(&MoveData {
+            start_pos: 60,
+            end_pos: 58,
+            piece: Piece::King,
+            move_type: MoveType::Castling
+        }));
+        assert!(!result.contains(&MoveData {
+            start_pos: 60,
+            end_pos: 62,
+            piece: Piece::King,
+            move_type: MoveType::Castling
+        }));
+    }
+
+    #[test]
+    fn en_passant_for_white_both_directions() {
+        let mut board = Board::from_fen("rnbqkbnr/2pp1pp1/pp5p/3PpP2/8/8/PPP1P1PP/RNBQKBNR w KQkq e6 0 5");
+        let result = board.get_valid_moves();
+        assert!(result.contains(&MoveData {
+            start_pos: 35,
+            end_pos: Square::E6,
+            piece: Piece::Pawn,
+            move_type: MoveType::EnPassant
+        }));
+        assert!(result.contains(&MoveData {
+            start_pos: 37,
+            end_pos: Square::E6,
+            piece: Piece::Pawn,
+            move_type: MoveType::EnPassant,
+        }));
+    }
+
+    #[test]
+    fn en_passant_for_black_both_directions() {
+        let mut board = Board::from_fen("rnbqkbnr/ppp1p1pp/8/8/3pPp2/PP4PP/2PP1P2/RNBQKBNR b KQkq e3 0 5");
+        let result = board.get_valid_moves();
+        assert!(result.contains(&MoveData {
+            start_pos: 27,
+            end_pos: Square::E3,
+            piece: Piece::Pawn,
+            move_type: MoveType::EnPassant
+        }));
+        assert!(result.contains(&MoveData {
+            start_pos: 29,
+            end_pos: Square::E3,
+            piece: Piece::Pawn,
+            move_type: MoveType::EnPassant,
+        }));
     }
 }
