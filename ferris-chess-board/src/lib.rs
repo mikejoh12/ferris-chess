@@ -49,7 +49,24 @@ pub enum GameStatus {
 struct Square;
 
 impl Square {
-    // Squares used for en passant targets
+    pub const A1: usize = 0;
+    pub const B1: usize = 1;
+    pub const C1: usize = 2;
+    pub const D1: usize = 3;
+    pub const E1: usize = 4;
+    pub const F1: usize = 5;
+    pub const G1: usize = 6;
+    pub const H1: usize = 7;
+
+    pub const A2: usize = 8;
+    pub const B2: usize = 9;
+    pub const C2: usize = 10;
+    pub const D2: usize = 11;
+    pub const E2: usize = 12;
+    pub const F2: usize = 13;
+    pub const G2: usize = 14;
+    pub const H2: usize = 15;
+
     pub const A3: usize = 16;
     pub const B3: usize = 17;
     pub const C3: usize = 18;
@@ -58,6 +75,25 @@ impl Square {
     pub const F3: usize = 21;
     pub const G3: usize = 22;
     pub const H3: usize = 23;
+
+    pub const A4: usize = 24;
+    pub const B4: usize = 25;
+    pub const C4: usize = 26;
+    pub const D4: usize = 27;
+    pub const E4: usize = 28;
+    pub const F4: usize = 29;
+    pub const G4: usize = 30;
+    pub const H4: usize = 31;
+
+    pub const A5: usize = 32;
+    pub const B5: usize = 33;
+    pub const C5: usize = 34;
+    pub const D5: usize = 35;
+    pub const E5: usize = 36;
+    pub const F5: usize = 37;
+    pub const G5: usize = 38;
+    pub const H5: usize = 39;
+
     pub const A6: usize = 40;
     pub const B6: usize = 41;
     pub const C6: usize = 42;
@@ -66,6 +102,25 @@ impl Square {
     pub const F6: usize = 45;
     pub const G6: usize = 46;
     pub const H6: usize = 47;
+
+    pub const A7: usize = 48;
+    pub const B7: usize = 49;
+    pub const C7: usize = 50;
+    pub const D7: usize = 51;
+    pub const E7: usize = 52;
+    pub const F7: usize = 53;
+    pub const G7: usize = 54;
+    pub const H7: usize = 55;
+
+    pub const A8: usize = 56;
+    pub const B8: usize = 57;
+    pub const C8: usize = 58;
+    pub const D8: usize = 59;
+    pub const E8: usize = 60;
+    pub const F8: usize = 61;
+    pub const G8: usize = 62;
+    pub const H8: usize = 63;
+
 }
 
 #[derive(Debug)]
@@ -234,10 +289,7 @@ impl Board {
     }
 
     fn is_unoccupied(&self, pos: usize) -> bool {
-        if let Some(_) = self.data[pos] {
-            return false;
-        }
-        true
+        self.data[pos] == None
     }
 
     fn get_occupied_status(&self, pos: usize) -> OccupiedStatus {
@@ -368,7 +420,7 @@ impl Board {
             self.full_moves += 1;
         }
 
-        // En passant
+        // Set en passant target square on double pawn push
         if instr.piece == Piece::Pawn && instr.start_pos.abs_diff(instr.end_pos) == 16 {
             self.en_passant_target = match self.is_white_to_move {
                 true => Some(instr.start_pos + 8),
@@ -376,6 +428,15 @@ impl Board {
             }
         } else {
             self.en_passant_target = None;
+        }
+
+        // Handle en passant capture
+        if instr.move_type == MoveType::EnPassant {
+            if self.is_white_to_move {
+                self.data[instr.end_pos - 8] = None
+            } else {
+                self.data[instr.end_pos + 8] = None
+            }
         }
 
         // Castling
@@ -502,7 +563,7 @@ impl Board {
             }
         }
 
-        // TODO: Promotion, en-passant
+        // TODO: Promotion
         new_positions
     }
 
@@ -976,14 +1037,14 @@ mod tests {
             Board::from_fen("r3k2r/ppp1nppp/2nbbq2/3pp3/3PP3/2NBBQ2/PPP1NPPP/R3K2R w KQkq - 10 8");
         let result = board.get_valid_moves();
         assert!(result.contains(&MoveData {
-            start_pos: 4,
-            end_pos: 2,
+            start_pos: Square::E1,
+            end_pos: Square::C1,
             piece: Piece::King,
             move_type: MoveType::Castling
         }));
         assert!(result.contains(&MoveData {
-            start_pos: 4,
-            end_pos: 6,
+            start_pos: Square::E1,
+            end_pos: Square::G1,
             piece: Piece::King,
             move_type: MoveType::Castling
         }));
@@ -995,14 +1056,14 @@ mod tests {
             Board::from_fen("r3k2r/ppp1nppp/2nbbq2/3pp3/3PP3/P1NBBQ2/1PP1NPPP/R3K2R b KQkq - 0 8");
         let result = board.get_valid_moves();
         assert!(result.contains(&MoveData {
-            start_pos: 60,
-            end_pos: 58,
+            start_pos: Square::E8,
+            end_pos: Square::C8,
             piece: Piece::King,
             move_type: MoveType::Castling
         }));
         assert!(result.contains(&MoveData {
-            start_pos: 60,
-            end_pos: 62,
+            start_pos: Square::E8,
+            end_pos: Square::G8,
             piece: Piece::King,
             move_type: MoveType::Castling
         }));
@@ -1013,14 +1074,14 @@ mod tests {
         let mut board = Board::from_fen("4k3/8/8/3r1r2/8/8/8/R3K2R w KQ - 1 1");
         let result = board.get_valid_moves();
         assert!(!result.contains(&MoveData {
-            start_pos: 4,
-            end_pos: 2,
+            start_pos: Square::E1,
+            end_pos: Square::C1,
             piece: Piece::King,
             move_type: MoveType::Castling
         }));
         assert!(!result.contains(&MoveData {
-            start_pos: 4,
-            end_pos: 6,
+            start_pos: Square::E1,
+            end_pos: Square::G1,
             piece: Piece::King,
             move_type: MoveType::Castling
         }));
@@ -1031,31 +1092,31 @@ mod tests {
         let mut board = Board::from_fen("r3k2r/8/8/8/3R1R2/8/8/4K3 b kq - 1 1");
         let result = board.get_valid_moves();
         assert!(!result.contains(&MoveData {
-            start_pos: 60,
-            end_pos: 58,
+            start_pos: Square::E8,
+            end_pos: Square::C8,
             piece: Piece::King,
             move_type: MoveType::Castling
         }));
         assert!(!result.contains(&MoveData {
-            start_pos: 60,
-            end_pos: 62,
+            start_pos: Square::E8,
+            end_pos: Square::G8,
             piece: Piece::King,
             move_type: MoveType::Castling
         }));
     }
 
     #[test]
-    fn en_passant_for_white_both_directions() {
+    fn en_passant_move_available_for_white_both_directions() {
         let mut board = Board::from_fen("rnbqkbnr/2pp1pp1/pp5p/3PpP2/8/8/PPP1P1PP/RNBQKBNR w KQkq e6 0 5");
         let result = board.get_valid_moves();
         assert!(result.contains(&MoveData {
-            start_pos: 35,
+            start_pos: Square::D5,
             end_pos: Square::E6,
             piece: Piece::Pawn,
             move_type: MoveType::EnPassant
         }));
         assert!(result.contains(&MoveData {
-            start_pos: 37,
+            start_pos: Square::F5,
             end_pos: Square::E6,
             piece: Piece::Pawn,
             move_type: MoveType::EnPassant,
@@ -1063,20 +1124,48 @@ mod tests {
     }
 
     #[test]
-    fn en_passant_for_black_both_directions() {
+    fn en_passant_move_available_for_black_both_directions() {
         let mut board = Board::from_fen("rnbqkbnr/ppp1p1pp/8/8/3pPp2/PP4PP/2PP1P2/RNBQKBNR b KQkq e3 0 5");
         let result = board.get_valid_moves();
         assert!(result.contains(&MoveData {
-            start_pos: 27,
+            start_pos: Square::D4,
             end_pos: Square::E3,
             piece: Piece::Pawn,
             move_type: MoveType::EnPassant
         }));
         assert!(result.contains(&MoveData {
-            start_pos: 29,
+            start_pos: Square::F4,
             end_pos: Square::E3,
             piece: Piece::Pawn,
             move_type: MoveType::EnPassant,
         }));
+    }
+
+    #[test]
+    fn en_passant_for_white_captures_pawn() {
+        // Target square E6 for white en passant. E5 has black pawn.
+        let mut board = Board::from_fen("rnbqkbnr/2pp1pp1/pp5p/3PpP2/8/8/PPP1P1PP/RNBQKBNR w KQkq e6 0 5");
+
+        board.make_move(&MoveData {
+            start_pos: Square::D5,
+            end_pos: Square::E6,
+            piece: Piece::Pawn,
+            move_type: MoveType::EnPassant
+        });
+        assert_eq!(board.data[Square::E5], None);
+    }
+
+    #[test]
+    fn en_passant_for_black_captures_pawn() {
+            // Target square E3 for black en passant. E4 has white pawn.
+            let mut board = Board::from_fen("rnbqkbnr/ppp1p1pp/8/8/3pPp2/PP4PP/2PP1P2/RNBQKBNR b KQkq e3 0 5");
+
+            board.make_move(&MoveData {
+                start_pos: Square::D4,
+                end_pos: Square::E3,
+                piece: Piece::Pawn,
+                move_type: MoveType::EnPassant
+            });
+            assert_eq!(board.data[Square::E4], None);
     }
 }
