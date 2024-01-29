@@ -36,6 +36,10 @@ pub enum MoveType {
     Regular,
     Castling,
     EnPassant,
+    QueenPromotion,
+    RookPromotion,
+    BishopPromotion,
+    KnightPromotion,
 }
 
 #[derive(Debug)]
@@ -46,7 +50,7 @@ pub enum GameStatus {
     Ongoing,
 }
 
-struct Square;
+pub struct Square;
 
 impl Square {
     pub const A1: usize = 0;
@@ -120,7 +124,6 @@ impl Square {
     pub const F8: usize = 61;
     pub const G8: usize = 62;
     pub const H8: usize = 63;
-
 }
 
 #[derive(Debug)]
@@ -413,8 +416,62 @@ impl Board {
 
     pub fn make_move(&mut self, instr: &MoveData) {
         if let Some(piece) = self.data[instr.start_pos] {
-            self.data[instr.end_pos] = Some(piece);
-            self.data[instr.start_pos] = None;
+            match instr.move_type {
+                MoveType::Regular => {
+                    self.data[instr.end_pos] = Some(piece);
+                    self.data[instr.start_pos] = None;
+                }
+                MoveType::Castling => {
+                    self.data[instr.end_pos] = Some(piece);
+                    self.data[instr.start_pos] = None;
+                    match instr.end_pos {
+                        Square::C1 => {
+                            self.data[Square::D1] = Some((Color::White, Piece::Rook));
+                            self.data[Square::A1] = None;
+                        },
+                        Square::G1 => {
+                            self.data[Square::F1] = Some((Color::White, Piece::Rook));
+                            self.data[Square::H1] = None;
+                        },
+                        Square::C8 => {
+                            self.data[Square::D8] = Some((Color::Black, Piece::Rook));
+                            self.data[Square::A8] = None;
+                        },
+                        Square::G8 => {
+                            self.data[Square::F8] = Some((Color::Black, Piece::Rook));
+                            self.data[Square::H8] = None;
+                        },
+                        _ => panic!("Invalid castling destination square")
+                    }
+                },
+                MoveType::EnPassant => {
+                    self.data[instr.end_pos] = Some(piece);
+                    self.data[instr.start_pos] = None;
+
+                    // Handle en passant capture
+                    if self.is_white_to_move {
+                        self.data[instr.end_pos - 8] = None
+                    } else {
+                        self.data[instr.end_pos + 8] = None
+                    }
+                }
+                MoveType::QueenPromotion => {
+                    self.data[instr.end_pos] = Some((piece.0, Piece::Queen));
+                    self.data[instr.start_pos] = None;
+                }
+                MoveType::RookPromotion => {
+                    self.data[instr.end_pos] = Some((piece.0, Piece::Rook));
+                    self.data[instr.start_pos] = None;
+                }
+                MoveType::BishopPromotion => {
+                    self.data[instr.end_pos] = Some((piece.0, Piece::Bishop));
+                    self.data[instr.start_pos] = None;
+                }
+                MoveType::KnightPromotion => {
+                    self.data[instr.end_pos] = Some((piece.0, Piece::Knight));
+                    self.data[instr.start_pos] = None;
+                }
+            };
         }
         if !self.is_white_to_move {
             self.full_moves += 1;
@@ -428,15 +485,6 @@ impl Board {
             }
         } else {
             self.en_passant_target = None;
-        }
-
-        // Handle en passant capture
-        if instr.move_type == MoveType::EnPassant {
-            if self.is_white_to_move {
-                self.data[instr.end_pos - 8] = None
-            } else {
-                self.data[instr.end_pos + 8] = None
-            }
         }
 
         // Castling
@@ -493,23 +541,52 @@ impl Board {
         files[file_idx].to_owned() + &rank.to_string()
     }
 
-    fn get_white_pawn_moves(&mut self, pos: usize) -> Vec<MoveData> {
-        let mut new_positions: Vec<MoveData> = vec![];
-        if pos + 8 < 64 && self.is_unoccupied(pos + 8) {
-            new_positions.push(MoveData {
+    fn add_promotion_moves(&self, start_pos: usize, end_pos: usize, moves: &mut Vec<MoveData>) {
+        let queen_promotion = MoveData {
+            start_pos,
+            end_pos,
+            piece: Piece::Pawn,
+            move_type: MoveType::QueenPromotion,
+        };
+        let rook_promotion = MoveData {
+            move_type: MoveType::RookPromotion,
+            ..queen_promotion
+        };
+        let bishop_promotion = MoveData {
+            move_type: MoveType::BishopPromotion,
+            ..queen_promotion
+        };
+        let knight_promotion = MoveData {
+            move_type: MoveType::KnightPromotion,
+            ..queen_promotion
+        };
+        moves.push(queen_promotion);
+        moves.push(rook_promotion);
+        moves.push(bishop_promotion);
+        moves.push(knight_promotion);
+    }
+
+    fn get_white_pawn_moves(&self, pos: usize) -> Vec<MoveData> {
+        let mut moves: Vec<MoveData> = vec![];
+        if pos + 8 < Square::A8 && self.is_unoccupied(pos + 8) {
+            moves.push(MoveData {
                 start_pos: pos,
                 end_pos: pos + 8,
                 piece: Piece::Pawn,
                 move_type: MoveType::Regular,
             });
         }
-        if pos <= 15 && self.is_unoccupied(pos + 8) && self.is_unoccupied(pos + 16) {
-            new_positions.push(MoveData {
+        if pos <= Square::H2 && self.is_unoccupied(pos + 8) && self.is_unoccupied(pos + 16) {
+            moves.push(MoveData {
                 start_pos: pos,
                 end_pos: pos + 16,
                 piece: Piece::Pawn,
                 move_type: MoveType::Regular,
             });
+        }
+
+        if pos >= Square::A7 && self.is_unoccupied(pos + 8) {
+            self.add_promotion_moves(pos, pos + 8, &mut moves);
         }
 
         let capture_rank_idx = pos / 8 + 1;
@@ -521,7 +598,7 @@ impl Board {
         if left_file_idx >= 0 && capture_rank_idx < 8 {
             let capture_pos = capture_rank_idx * 8 + left_file_idx as usize;
             if self.get_occupied_status(capture_pos) == OccupiedStatus::OccupiedOpponentColor {
-                new_positions.push(MoveData {
+                moves.push(MoveData {
                     start_pos: pos,
                     end_pos: capture_pos,
                     piece: Piece::Pawn,
@@ -529,7 +606,7 @@ impl Board {
                 });
             } else if let Some(i) = self.en_passant_target {
                 if i == capture_pos {
-                    new_positions.push(MoveData {
+                    moves.push(MoveData {
                         start_pos: pos,
                         end_pos: capture_pos,
                         piece: Piece::Pawn,
@@ -545,7 +622,7 @@ impl Board {
         if right_file_idx < 8 && capture_rank_idx < 8 {
             let capture_pos = capture_rank_idx * 8 + right_file_idx;
             if self.get_occupied_status(capture_pos) == OccupiedStatus::OccupiedOpponentColor {
-                new_positions.push(MoveData {
+                moves.push(MoveData {
                     start_pos: pos,
                     end_pos: capture_pos,
                     piece: Piece::Pawn,
@@ -553,7 +630,7 @@ impl Board {
                 });
             } else if let Some(i) = self.en_passant_target {
                 if i == capture_pos {
-                    new_positions.push(MoveData {
+                    moves.push(MoveData {
                         start_pos: pos,
                         end_pos: capture_pos,
                         piece: Piece::Pawn,
@@ -563,14 +640,13 @@ impl Board {
             }
         }
 
-        // TODO: Promotion
-        new_positions
+        moves
     }
 
     fn get_black_pawn_moves(&self, pos: usize) -> Vec<MoveData> {
-        let mut new_positions: Vec<MoveData> = vec![];
+        let mut moves: Vec<MoveData> = vec![];
         if pos >= 8 && self.is_unoccupied(pos - 8) {
-            new_positions.push(MoveData {
+            moves.push(MoveData {
                 start_pos: pos,
                 end_pos: pos - 8,
                 piece: Piece::Pawn,
@@ -578,12 +654,16 @@ impl Board {
             });
         }
         if pos >= 48 && self.is_unoccupied(pos - 8) && self.is_unoccupied(pos - 16) {
-            new_positions.push(MoveData {
+            moves.push(MoveData {
                 start_pos: pos,
                 end_pos: pos - 16,
                 piece: Piece::Pawn,
                 move_type: MoveType::Regular,
             });
+        }
+
+        if pos <= Square::H2 && self.is_unoccupied(pos - 8) {
+            self.add_promotion_moves(pos, pos - 8, &mut moves);
         }
 
         // Pawn captures
@@ -596,7 +676,7 @@ impl Board {
         if left_file_idx >= 0 && capture_rank_idx >= 0 {
             let capture_pos = (capture_rank_idx * 8 + left_file_idx) as usize;
             if self.get_occupied_status(capture_pos) == OccupiedStatus::OccupiedOpponentColor {
-                new_positions.push(MoveData {
+                moves.push(MoveData {
                     start_pos: pos,
                     end_pos: capture_pos,
                     piece: Piece::Pawn,
@@ -604,7 +684,7 @@ impl Board {
                 });
             } else if let Some(i) = self.en_passant_target {
                 if i == capture_pos {
-                    new_positions.push(MoveData {
+                    moves.push(MoveData {
                         start_pos: pos,
                         end_pos: capture_pos,
                         piece: Piece::Pawn,
@@ -620,7 +700,7 @@ impl Board {
         if right_file_idx < 8 && capture_rank_idx >= 0 {
             let capture_pos = capture_rank_idx as usize * 8 + right_file_idx;
             if self.get_occupied_status(capture_pos) == OccupiedStatus::OccupiedOpponentColor {
-                new_positions.push(MoveData {
+                moves.push(MoveData {
                     start_pos: pos,
                     end_pos: capture_pos,
                     piece: Piece::Pawn,
@@ -628,7 +708,7 @@ impl Board {
                 });
             } else if let Some(i) = self.en_passant_target {
                 if i == capture_pos {
-                    new_positions.push(MoveData {
+                    moves.push(MoveData {
                         start_pos: pos,
                         end_pos: capture_pos,
                         piece: Piece::Pawn,
@@ -638,8 +718,7 @@ impl Board {
             }
         }
 
-        // TODO: Pawn promotion, en-passant
-        new_positions
+        moves
     }
 
     fn get_rook_rays(&self, pos: usize) -> Vec<Vec<usize>> {
@@ -1070,6 +1149,79 @@ mod tests {
     }
 
     #[test]
+    fn castling_white_king_side() {
+        let mut board = Board::from_fen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1");
+        let result = board.get_valid_moves();
+
+        let white_king_castling = MoveData {
+            start_pos: Square::E1,
+            end_pos: Square::G1,
+            piece: Piece::King,
+            move_type: MoveType::Castling
+        };
+
+        assert!(result.contains(&white_king_castling));
+        board.make_move(&white_king_castling);
+        assert_eq!(board.data[Square::G1], Some((Color::White, Piece::King)));
+        assert_eq!(board.data[Square::F1], Some((Color::White, Piece::Rook)));
+
+    }
+
+    #[test]
+    fn castling_white_queen_side() {
+        let mut board = Board::from_fen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1");
+        let result = board.get_valid_moves();
+
+        let white_queen_castling = MoveData {
+            start_pos: Square::E1,
+            end_pos: Square::C1,
+            piece: Piece::King,
+            move_type: MoveType::Castling
+        };
+
+        assert!(result.contains(&white_queen_castling));
+        board.make_move(&white_queen_castling);
+        assert_eq!(board.data[Square::C1], Some((Color::White, Piece::King)));
+        assert_eq!(board.data[Square::D1], Some((Color::White, Piece::Rook)));
+    }
+
+    #[test]
+    fn castling_black_king_side() {
+        let mut board = Board::from_fen("r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1");
+        let result = board.get_valid_moves();
+
+        let black_king_castling = MoveData {
+            start_pos: Square::E8,
+            end_pos: Square::G8,
+            piece: Piece::King,
+            move_type: MoveType::Castling
+        };
+
+        assert!(result.contains(&black_king_castling));
+        board.make_move(&black_king_castling);
+        assert_eq!(board.data[Square::G8], Some((Color::Black, Piece::King)));
+        assert_eq!(board.data[Square::F8], Some((Color::Black, Piece::Rook)));
+    }
+
+    #[test]
+    fn castling_black_queen_side() {
+        let mut board = Board::from_fen("r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1");
+        let result = board.get_valid_moves();
+
+        let black_queen_castling = MoveData {
+            start_pos: Square::E8,
+            end_pos: Square::C8,
+            piece: Piece::King,
+            move_type: MoveType::Castling
+        };
+
+        assert!(result.contains(&black_queen_castling));
+        board.make_move(&black_queen_castling);
+        assert_eq!(board.data[Square::C8], Some((Color::Black, Piece::King)));
+        assert_eq!(board.data[Square::D8], Some((Color::Black, Piece::Rook)));
+    }
+
+    #[test]
     fn no_white_castling_king_crosses_attack_has_castling_rights() {
         let mut board = Board::from_fen("4k3/8/8/3r1r2/8/8/8/R3K2R w KQ - 1 1");
         let result = board.get_valid_moves();
@@ -1107,7 +1259,8 @@ mod tests {
 
     #[test]
     fn en_passant_move_available_for_white_both_directions() {
-        let mut board = Board::from_fen("rnbqkbnr/2pp1pp1/pp5p/3PpP2/8/8/PPP1P1PP/RNBQKBNR w KQkq e6 0 5");
+        let mut board =
+            Board::from_fen("rnbqkbnr/2pp1pp1/pp5p/3PpP2/8/8/PPP1P1PP/RNBQKBNR w KQkq e6 0 5");
         let result = board.get_valid_moves();
         assert!(result.contains(&MoveData {
             start_pos: Square::D5,
@@ -1125,7 +1278,8 @@ mod tests {
 
     #[test]
     fn en_passant_move_available_for_black_both_directions() {
-        let mut board = Board::from_fen("rnbqkbnr/ppp1p1pp/8/8/3pPp2/PP4PP/2PP1P2/RNBQKBNR b KQkq e3 0 5");
+        let mut board =
+            Board::from_fen("rnbqkbnr/ppp1p1pp/8/8/3pPp2/PP4PP/2PP1P2/RNBQKBNR b KQkq e3 0 5");
         let result = board.get_valid_moves();
         assert!(result.contains(&MoveData {
             start_pos: Square::D4,
@@ -1144,28 +1298,134 @@ mod tests {
     #[test]
     fn en_passant_for_white_captures_pawn() {
         // Target square E6 for white en passant. E5 has black pawn.
-        let mut board = Board::from_fen("rnbqkbnr/2pp1pp1/pp5p/3PpP2/8/8/PPP1P1PP/RNBQKBNR w KQkq e6 0 5");
+        let mut board =
+            Board::from_fen("rnbqkbnr/2pp1pp1/pp5p/3PpP2/8/8/PPP1P1PP/RNBQKBNR w KQkq e6 0 5");
 
         board.make_move(&MoveData {
             start_pos: Square::D5,
             end_pos: Square::E6,
             piece: Piece::Pawn,
-            move_type: MoveType::EnPassant
+            move_type: MoveType::EnPassant,
         });
         assert_eq!(board.data[Square::E5], None);
     }
 
     #[test]
     fn en_passant_for_black_captures_pawn() {
-            // Target square E3 for black en passant. E4 has white pawn.
-            let mut board = Board::from_fen("rnbqkbnr/ppp1p1pp/8/8/3pPp2/PP4PP/2PP1P2/RNBQKBNR b KQkq e3 0 5");
+        // Target square E3 for black en passant. E4 has white pawn.
+        let mut board =
+            Board::from_fen("rnbqkbnr/ppp1p1pp/8/8/3pPp2/PP4PP/2PP1P2/RNBQKBNR b KQkq e3 0 5");
 
-            board.make_move(&MoveData {
-                start_pos: Square::D4,
-                end_pos: Square::E3,
-                piece: Piece::Pawn,
-                move_type: MoveType::EnPassant
-            });
-            assert_eq!(board.data[Square::E4], None);
+        board.make_move(&MoveData {
+            start_pos: Square::D4,
+            end_pos: Square::E3,
+            piece: Piece::Pawn,
+            move_type: MoveType::EnPassant,
+        });
+        assert_eq!(board.data[Square::E4], None);
+    }
+
+    #[test]
+    fn pawn_promotion_queen_white() {
+        let mut board = Board::from_fen("8/P7/4k3/8/8/4K3/8/8 w - - 0 1");
+        let result = board.get_valid_moves();
+
+        assert!(result.contains(&MoveData {
+            start_pos: Square::A7,
+            end_pos: Square::A8,
+            piece: Piece::Pawn,
+            move_type: MoveType::QueenPromotion,
+        }));
+    }
+
+    #[test]
+    fn pawn_promotion_rook_white() {
+        let mut board = Board::from_fen("8/P7/4k3/8/8/4K3/8/8 w - - 0 1");
+        let result = board.get_valid_moves();
+
+        assert!(result.contains(&MoveData {
+            start_pos: Square::A7,
+            end_pos: Square::A8,
+            piece: Piece::Pawn,
+            move_type: MoveType::RookPromotion,
+        }));
+    }
+
+    #[test]
+    fn pawn_promotion_bishop_white() {
+        let mut board = Board::from_fen("8/P7/4k3/8/8/4K3/8/8 w - - 0 1");
+        let result = board.get_valid_moves();
+
+        assert!(result.contains(&MoveData {
+            start_pos: Square::A7,
+            end_pos: Square::A8,
+            piece: Piece::Pawn,
+            move_type: MoveType::BishopPromotion,
+        }));
+    }
+
+    #[test]
+    fn pawn_promotion_knight_white() {
+        let mut board = Board::from_fen("8/P7/4k3/8/8/4K3/8/8 w - - 0 1");
+        let result = board.get_valid_moves();
+
+        assert!(result.contains(&MoveData {
+            start_pos: Square::A7,
+            end_pos: Square::A8,
+            piece: Piece::Pawn,
+            move_type: MoveType::KnightPromotion,
+        }));
+    }
+
+    #[test]
+    fn pawn_promotion_queen_black() {
+        let mut board = Board::from_fen("8/5k2/8/8/4K3/8/2p5/8 b - - 0 1");
+        let result = board.get_valid_moves();
+
+        assert!(result.contains(&MoveData {
+            start_pos: Square::C2,
+            end_pos: Square::C1,
+            piece: Piece::Pawn,
+            move_type: MoveType::QueenPromotion,
+        }));
+    }
+
+    #[test]
+    fn pawn_promotion_rook_black() {
+        let mut board = Board::from_fen("8/P7/4k3/8/8/4K3/8/8 w - - 0 1");
+        let result = board.get_valid_moves();
+
+        assert!(result.contains(&MoveData {
+            start_pos: Square::A7,
+            end_pos: Square::A8,
+            piece: Piece::Pawn,
+            move_type: MoveType::RookPromotion,
+        }));
+    }
+
+    #[test]
+    fn pawn_promotion_bishop_black() {
+        let mut board = Board::from_fen("8/P7/4k3/8/8/4K3/8/8 w - - 0 1");
+        let result = board.get_valid_moves();
+
+        assert!(result.contains(&MoveData {
+            start_pos: Square::A7,
+            end_pos: Square::A8,
+            piece: Piece::Pawn,
+            move_type: MoveType::BishopPromotion,
+        }));
+    }
+
+    #[test]
+    fn pawn_promotion_knight_black() {
+        let mut board = Board::from_fen("8/P7/4k3/8/8/4K3/8/8 w - - 0 1");
+        let result = board.get_valid_moves();
+
+        assert!(result.contains(&MoveData {
+            start_pos: Square::A7,
+            end_pos: Square::A8,
+            piece: Piece::Pawn,
+            move_type: MoveType::KnightPromotion,
+        }));
     }
 }

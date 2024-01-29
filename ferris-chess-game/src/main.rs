@@ -13,7 +13,7 @@ fn main() {
     println!("Game status: {:?}\n", board.game_status);
 
     // Opening move f2f3 (long "uci" notation) - f pawn forward 1 square
-    board.make_move(&ferris_chess_board::MoveData{
+    board.make_move(&ferris_chess_board::MoveData {
         start_pos: 13,
         end_pos: 21,
         piece: Piece::Pawn,
@@ -27,7 +27,12 @@ fn main() {
     println!("Game status: {:?}\n", board.game_status);
 
     // Black moves e7e5
-    board.make_move(&ferris_chess_board::MoveData { start_pos: 52, end_pos: 36, piece: Piece::Pawn, move_type: MoveType::Regular });
+    board.make_move(&ferris_chess_board::MoveData {
+        start_pos: 52,
+        end_pos: 36,
+        piece: Piece::Pawn,
+        move_type: MoveType::Regular,
+    });
     board.print();
     valid_moves = board.get_valid_moves();
     println!("Is white to move: {}", board.is_white_to_move);
@@ -35,7 +40,12 @@ fn main() {
     println!("Game status: {:?}\n", board.game_status);
 
     // White moves g2g4
-    board.make_move(&ferris_chess_board::MoveData { start_pos: 14, end_pos: 30, piece: Piece::Pawn, move_type: MoveType::Regular });
+    board.make_move(&ferris_chess_board::MoveData {
+        start_pos: 14,
+        end_pos: 30,
+        piece: Piece::Pawn,
+        move_type: MoveType::Regular,
+    });
     board.print();
     valid_moves = board.get_valid_moves();
     println!("Is white to move: {}", board.is_white_to_move);
@@ -43,11 +53,15 @@ fn main() {
     println!("Game status: {:?}\n", board.game_status);
 
     // Black moves d8h4 - Fool's mate
-    board.make_move(&ferris_chess_board::MoveData { start_pos: 59, end_pos: 31, piece: Piece::Pawn, move_type: MoveType::Regular });
+    board.make_move(&ferris_chess_board::MoveData {
+        start_pos: 59,
+        end_pos: 31,
+        piece: Piece::Pawn,
+        move_type: MoveType::Regular,
+    });
     board.print();
     valid_moves = board.get_valid_moves();
     println!("Is white to move: {}", board.is_white_to_move);
     board.print_moves(&valid_moves);
     println!("Game status: {:?}\n", board.game_status);
-
 }
