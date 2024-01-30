@@ -1,5 +1,5 @@
-use std::vec;
 pub use squares::Square;
+use std::vec;
 
 mod squares;
 
@@ -46,6 +46,16 @@ pub enum MoveType {
 }
 
 #[derive(Debug)]
+struct IrreversibleBoardState {
+    castling_w_00: bool,
+    castling_w_000: bool,
+    castling_b_00: bool,
+    castling_b_000: bool,
+    half_moves: usize,
+    ep_target: Option<usize>,
+}
+
+#[derive(Debug)]
 pub enum GameStatus {
     WhiteWin,
     BlackWin,
@@ -58,13 +68,14 @@ pub struct Board {
     pub game_status: GameStatus,
     pub is_white_to_move: bool,
     pub data: [Option<(Color, Piece)>; 64],
-    can_castle_w_king_side: bool,
-    can_castle_w_queen_side: bool,
-    can_castle_b_king_side: bool,
-    can_castle_b_queen_side: bool,
-    en_passant_target: Option<usize>,
+    castling_w_00: bool,
+    castling_w_000: bool,
+    castling_b_00: bool,
+    castling_b_000: bool,
+    ep_target: Option<usize>,
     half_moves: usize,
     full_moves: usize,
+    irreversible_board_state_stack: Vec<IrreversibleBoardState>,
 }
 
 impl Board {
@@ -114,13 +125,13 @@ impl Board {
         let castling_rights = sections
             .next()
             .expect("Invalid FEN string - castling rights");
-        let can_castle_w_king_side = castling_rights.contains("K");
-        let can_castle_w_queen_side = castling_rights.contains("Q");
-        let can_castle_b_king_side = castling_rights.contains("k");
-        let can_castle_b_queen_side = castling_rights.contains("q");
+        let castling_w_00 = castling_rights.contains("K");
+        let castling_w_000 = castling_rights.contains("Q");
+        let castling_b_00 = castling_rights.contains("k");
+        let castling_b_000 = castling_rights.contains("q");
 
         let en_passant_target_str = sections.next().expect("Invalid FEN string - en passant");
-        let en_passant_target = match en_passant_target_str {
+        let ep_target = match en_passant_target_str {
             "-" => None,
             "a3" => Some(Square::A3),
             "b3" => Some(Square::B3),
@@ -156,14 +167,15 @@ impl Board {
         Board {
             is_white_to_move,
             data,
-            can_castle_w_king_side,
-            can_castle_w_queen_side,
-            can_castle_b_king_side,
-            can_castle_b_queen_side,
-            en_passant_target,
+            castling_w_00,
+            castling_w_000,
+            castling_b_00,
+            castling_b_000,
+            ep_target,
             half_moves,
             full_moves,
             game_status: GameStatus::Ongoing,
+            irreversible_board_state_stack: vec![],
         }
     }
 
@@ -196,12 +208,9 @@ impl Board {
         println!("Is white to move: {}", self.is_white_to_move);
         println!(
             "Castling ability -> K: {}, Q: {}, k: {}, q: {}",
-            self.can_castle_w_king_side,
-            self.can_castle_w_queen_side,
-            self.can_castle_b_king_side,
-            self.can_castle_b_queen_side
+            self.castling_w_00, self.castling_w_000, self.castling_b_00, self.castling_b_000,
         );
-        println!("En passant target square: {:?}", self.en_passant_target);
+        println!("En passant target square: {:?}", self.ep_target);
         println!(
             "Halfmove Clock: {} Fullmove counter: {}",
             self.half_moves, self.full_moves
@@ -342,6 +351,16 @@ impl Board {
     }
 
     pub fn make_move(&mut self, instr: &MoveData) {
+        self.irreversible_board_state_stack
+            .push(IrreversibleBoardState {
+                castling_w_00: self.castling_w_00,
+                castling_w_000: self.castling_w_000,
+                castling_b_00: self.castling_b_00,
+                castling_b_000: self.castling_b_000,
+                half_moves: self.half_moves,
+                ep_target: self.ep_target,
+            });
+
         if let Some(piece) = self.data[instr.start_pos] {
             match instr.move_type {
                 MoveType::Regular => {
@@ -355,22 +374,22 @@ impl Board {
                         Square::C1 => {
                             self.data[Square::D1] = Some((Color::White, Piece::Rook));
                             self.data[Square::A1] = None;
-                        },
+                        }
                         Square::G1 => {
                             self.data[Square::F1] = Some((Color::White, Piece::Rook));
                             self.data[Square::H1] = None;
-                        },
+                        }
                         Square::C8 => {
                             self.data[Square::D8] = Some((Color::Black, Piece::Rook));
                             self.data[Square::A8] = None;
-                        },
+                        }
                         Square::G8 => {
                             self.data[Square::F8] = Some((Color::Black, Piece::Rook));
                             self.data[Square::H8] = None;
-                        },
-                        _ => panic!("Invalid castling destination square")
+                        }
+                        _ => panic!("Invalid castling destination square"),
                     }
-                },
+                }
                 MoveType::EnPassant => {
                     self.data[instr.end_pos] = Some(piece);
                     self.data[instr.start_pos] = None;
@@ -406,22 +425,22 @@ impl Board {
 
         // Set en passant target square on double pawn push
         if instr.piece == Piece::Pawn && instr.start_pos.abs_diff(instr.end_pos) == 16 {
-            self.en_passant_target = match self.is_white_to_move {
+            self.ep_target = match self.is_white_to_move {
                 true => Some(instr.start_pos + 8),
                 false => Some(instr.start_pos - 8),
             }
         } else {
-            self.en_passant_target = None;
+            self.ep_target = None;
         }
 
         // Castling
         if instr.piece == Piece::King {
             if self.is_white_to_move {
-                self.can_castle_w_king_side = false;
-                self.can_castle_w_queen_side = false;
+                self.castling_w_00 = false;
+                self.castling_w_000 = false;
             } else {
-                self.can_castle_b_king_side = false;
-                self.can_castle_b_queen_side = false;
+                self.castling_b_00 = false;
+                self.castling_b_000 = false;
             }
         }
 
@@ -433,16 +452,18 @@ impl Board {
                 instr.start_pos == 56,
                 instr.start_pos == 63,
             ) {
-                (true, true, _, _, _) => self.can_castle_w_queen_side = false,
-                (true, _, true, _, _) => self.can_castle_w_king_side = false,
-                (false, _, _, true, _) => self.can_castle_b_queen_side = false,
-                (false, _, _, _, true) => self.can_castle_b_king_side = false,
+                (true, true, _, _, _) => self.castling_w_000 = false,
+                (true, _, true, _, _) => self.castling_w_00 = false,
+                (false, _, _, true, _) => self.castling_b_000 = false,
+                (false, _, _, _, true) => self.castling_b_00 = false,
                 _ => (),
             }
         }
 
         self.is_white_to_move = !self.is_white_to_move;
     }
+
+    pub fn unmake_move(&self) {}
 
     fn get_potential_move_positions(&self) -> Vec<(usize, Color, Piece)> {
         let target_color = match self.is_white_to_move {
@@ -531,7 +552,7 @@ impl Board {
                     piece: Piece::Pawn,
                     move_type: MoveType::Regular,
                 });
-            } else if let Some(i) = self.en_passant_target {
+            } else if let Some(i) = self.ep_target {
                 if i == capture_pos {
                     moves.push(MoveData {
                         start_pos: pos,
@@ -555,7 +576,7 @@ impl Board {
                     piece: Piece::Pawn,
                     move_type: MoveType::Regular,
                 });
-            } else if let Some(i) = self.en_passant_target {
+            } else if let Some(i) = self.ep_target {
                 if i == capture_pos {
                     moves.push(MoveData {
                         start_pos: pos,
@@ -609,7 +630,7 @@ impl Board {
                     piece: Piece::Pawn,
                     move_type: MoveType::Regular,
                 });
-            } else if let Some(i) = self.en_passant_target {
+            } else if let Some(i) = self.ep_target {
                 if i == capture_pos {
                     moves.push(MoveData {
                         start_pos: pos,
@@ -633,7 +654,7 @@ impl Board {
                     piece: Piece::Pawn,
                     move_type: MoveType::Regular,
                 });
-            } else if let Some(i) = self.en_passant_target {
+            } else if let Some(i) = self.ep_target {
                 if i == capture_pos {
                     moves.push(MoveData {
                         start_pos: pos,
@@ -911,7 +932,7 @@ impl Board {
         let mut moves: Vec<MoveData> = vec![];
 
         if self.is_white_to_move {
-            if self.can_castle_w_queen_side {
+            if self.castling_w_000 {
                 if [1, 2, 3].iter().all(|s| self.data[*s] == None)
                     && [2, 3, 4].iter().all(|s| !self.is_position_threatened(*s))
                 {
@@ -923,7 +944,7 @@ impl Board {
                     })
                 }
             }
-            if self.can_castle_w_king_side {
+            if self.castling_w_00 {
                 if [5, 6].iter().all(|s| self.data[*s] == None)
                     && [4, 5, 6].iter().all(|s| !self.is_position_threatened(*s))
                 {
@@ -936,7 +957,7 @@ impl Board {
                 }
             }
         } else {
-            if self.can_castle_b_queen_side {
+            if self.castling_b_000 {
                 if [57, 58, 59].iter().all(|s| self.data[*s] == None)
                     && [58, 59, 60]
                         .iter()
@@ -950,7 +971,7 @@ impl Board {
                     })
                 }
             }
-            if self.can_castle_b_king_side {
+            if self.castling_b_00 {
                 if [61, 62].iter().all(|s| self.data[*s] == None)
                     && [60, 61, 62]
                         .iter()
@@ -1021,4 +1042,3 @@ impl Board {
         }
     }
 }
-
