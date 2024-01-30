@@ -1,4 +1,4 @@
-use ferris_chess_board::{self, MoveType, Capture, Piece};
+use ferris_chess_board::{self, Capture, MoveType, Piece};
 
 fn main() {
     let mut board = ferris_chess_board::Board::from_fen(

@@ -34,7 +34,7 @@ pub struct MoveData {
     pub move_type: MoveType,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Capture(pub Option<Piece>);
 
 #[derive(Debug, PartialEq)]
@@ -492,26 +492,29 @@ impl Board {
         files[file_idx].to_owned() + &rank.to_string()
     }
 
-    fn add_promotion_moves(&self, start_pos: usize, end_pos: usize, moves: &mut Vec<MoveData>) {
-
-        // TODO Handle capturing promotions
-
+    fn add_promotion_moves(
+        &self,
+        start_pos: usize,
+        end_pos: usize,
+        capture: Capture,
+        moves: &mut Vec<MoveData>,
+    ) {
         let queen_promotion = MoveData {
             start_pos,
             end_pos,
             piece: Piece::Pawn,
-            move_type: MoveType::QueenPromotion(Capture(None)),
+            move_type: MoveType::QueenPromotion(capture),
         };
         let rook_promotion = MoveData {
-            move_type: MoveType::RookPromotion(Capture(None)),
+            move_type: MoveType::RookPromotion(capture),
             ..queen_promotion
         };
         let bishop_promotion = MoveData {
-            move_type: MoveType::BishopPromotion(Capture(None)),
+            move_type: MoveType::BishopPromotion(capture),
             ..queen_promotion
         };
         let knight_promotion = MoveData {
-            move_type: MoveType::KnightPromotion(Capture(None)),
+            move_type: MoveType::KnightPromotion(capture),
             ..queen_promotion
         };
         moves.push(queen_promotion);
@@ -539,32 +542,55 @@ impl Board {
             });
         }
 
+        // Pawn promotion without capture
         if pos >= Square::A7 && self.is_unoccupied(pos + 8) {
-            self.add_promotion_moves(pos, pos + 8, &mut moves);
+            self.add_promotion_moves(pos, pos + 8, Capture(None), &mut moves);
         }
 
-        // TODO Add promotion capture moves
-
-        let capture_rank_idx = pos / 8 + 1;
+        // Pawn captures
         let file_idx = pos % 8;
+        let capture_rank_idx = pos / 8 + 1;
 
-        // Left up pawn capture (looking at board from White's position)
+        // Left up pawn captures (looking at board from White's position)
         let left_file_idx = file_idx as isize - 1;
 
-        if left_file_idx >= 0 && capture_rank_idx < 8 {
-            let capture_pos = capture_rank_idx * 8 + left_file_idx as usize;
-            if self.get_occupied_status(capture_pos) == OccupiedStatus::OccupiedOpponentColor {
-                moves.push(MoveData {
-                    start_pos: pos,
-                    end_pos: capture_pos,
-                    piece: Piece::Pawn,
-                    move_type: MoveType::Regular(Capture(Some(self.data[capture_pos].unwrap().1))),
-                });
-            } else if let Some(i) = self.ep_target {
-                if i == capture_pos {
+        if left_file_idx >= 0 {
+            let left_capture_pos = capture_rank_idx * 8 + left_file_idx as usize;
+
+            // Regular pawn capture
+            if capture_rank_idx < 7 {
+                if self.get_occupied_status(left_capture_pos)
+                    == OccupiedStatus::OccupiedOpponentColor
+                {
                     moves.push(MoveData {
                         start_pos: pos,
-                        end_pos: capture_pos,
+                        end_pos: left_capture_pos,
+                        piece: Piece::Pawn,
+                        move_type: MoveType::Regular(Capture(Some(
+                            self.data[left_capture_pos].unwrap().1,
+                        ))),
+                    });
+                }
+            } else if capture_rank_idx == 7 {
+                // Pawn promotion with capture to the left
+                if self.get_occupied_status(left_capture_pos)
+                    == OccupiedStatus::OccupiedOpponentColor
+                {
+                    self.add_promotion_moves(
+                        pos,
+                        left_capture_pos,
+                        Capture(Some(self.data[left_capture_pos].unwrap().1)),
+                        &mut moves,
+                    );
+                }
+            };
+
+            // En passant capture to the left
+            if let Some(i) = self.ep_target {
+                if i == left_capture_pos {
+                    moves.push(MoveData {
+                        start_pos: pos,
+                        end_pos: left_capture_pos,
                         piece: Piece::Pawn,
                         move_type: MoveType::EnPassant,
                     });
@@ -575,20 +601,41 @@ impl Board {
         // Right up pawn capture (looking at board from White's position)
         let right_file_idx = file_idx + 1;
 
-        if right_file_idx < 8 && capture_rank_idx < 8 {
-            let capture_pos = capture_rank_idx * 8 + right_file_idx;
-            if self.get_occupied_status(capture_pos) == OccupiedStatus::OccupiedOpponentColor {
-                moves.push(MoveData {
-                    start_pos: pos,
-                    end_pos: capture_pos,
-                    piece: Piece::Pawn,
-                    move_type: MoveType::Regular(Capture(Some(self.data[capture_pos].unwrap().1))),
-                });
-            } else if let Some(i) = self.ep_target {
-                if i == capture_pos {
+        if right_file_idx < 8 {
+            let right_capture_pos = capture_rank_idx * 8 + right_file_idx as usize;
+
+            if capture_rank_idx < 7 {
+                if self.get_occupied_status(right_capture_pos)
+                    == OccupiedStatus::OccupiedOpponentColor
+                {
                     moves.push(MoveData {
                         start_pos: pos,
-                        end_pos: capture_pos,
+                        end_pos: right_capture_pos,
+                        piece: Piece::Pawn,
+                        move_type: MoveType::Regular(Capture(Some(
+                            self.data[right_capture_pos].unwrap().1,
+                        ))),
+                    });
+                }
+            } else if capture_rank_idx == 7 {
+                // Pawn promotion with capture to the left
+                if self.get_occupied_status(right_capture_pos)
+                    == OccupiedStatus::OccupiedOpponentColor
+                {
+                    self.add_promotion_moves(
+                        pos,
+                        right_capture_pos,
+                        Capture(Some(self.data[right_capture_pos].unwrap().1)),
+                        &mut moves,
+                    );
+                }
+            };
+
+            if let Some(i) = self.ep_target {
+                if i == right_capture_pos {
+                    moves.push(MoveData {
+                        start_pos: pos,
+                        end_pos: right_capture_pos,
                         piece: Piece::Pawn,
                         move_type: MoveType::EnPassant,
                     });
@@ -618,33 +665,55 @@ impl Board {
             });
         }
 
+        // Pawn promotion without capture
         if pos <= Square::H2 && self.is_unoccupied(pos - 8) {
-            self.add_promotion_moves(pos, pos - 8, &mut moves);
+            self.add_promotion_moves(pos, pos - 8, Capture(None), &mut moves);
         }
 
-        // TODO Add promotion capture moves
-
         // Pawn captures
-        let capture_rank_idx = pos as isize / 8 - 1;
         let file_idx = pos % 8;
+        let capture_rank_idx = pos as isize / 8 - 1;
 
         // Left down pawn capture (looking at board from White's position)
         let left_file_idx = file_idx as isize - 1;
 
-        if left_file_idx >= 0 && capture_rank_idx >= 0 {
-            let capture_pos = (capture_rank_idx * 8 + left_file_idx) as usize;
-            if self.get_occupied_status(capture_pos) == OccupiedStatus::OccupiedOpponentColor {
-                moves.push(MoveData {
-                    start_pos: pos,
-                    end_pos: capture_pos,
-                    piece: Piece::Pawn,
-                    move_type: MoveType::Regular(Capture(Some(self.data[capture_pos].unwrap().1))),
-                });
-            } else if let Some(i) = self.ep_target {
-                if i == capture_pos {
+        if left_file_idx >= 0 {
+            let left_capture_pos = (capture_rank_idx * 8 + left_file_idx) as usize;
+
+            // Regular pawn capture
+            if capture_rank_idx > 0 {
+                if self.get_occupied_status(left_capture_pos)
+                    == OccupiedStatus::OccupiedOpponentColor
+                {
                     moves.push(MoveData {
                         start_pos: pos,
-                        end_pos: capture_pos,
+                        end_pos: left_capture_pos,
+                        piece: Piece::Pawn,
+                        move_type: MoveType::Regular(Capture(Some(
+                            self.data[left_capture_pos].unwrap().1,
+                        ))),
+                    });
+                }
+            } else if capture_rank_idx == 0 {
+                // Pawn promotion with capture to the left
+                if self.get_occupied_status(left_capture_pos)
+                    == OccupiedStatus::OccupiedOpponentColor
+                {
+                    self.add_promotion_moves(
+                        pos,
+                        left_capture_pos,
+                        Capture(Some(self.data[left_capture_pos].unwrap().1)),
+                        &mut moves,
+                    );
+                }
+            };
+
+            // En passant capture to the left
+            if let Some(i) = self.ep_target {
+                if i == left_capture_pos {
+                    moves.push(MoveData {
+                        start_pos: pos,
+                        end_pos: left_capture_pos,
                         piece: Piece::Pawn,
                         move_type: MoveType::EnPassant,
                     });
@@ -652,29 +721,52 @@ impl Board {
             }
         }
 
-        // Right down pawn capture (looking at board from White's position)
-        let right_file_idx = file_idx + 1;
+    // Right down pawn capture (looking at board from White's position)
+    let right_file_idx = file_idx + 1;
 
-        if right_file_idx < 8 && capture_rank_idx >= 0 {
-            let capture_pos = capture_rank_idx as usize * 8 + right_file_idx;
-            if self.get_occupied_status(capture_pos) == OccupiedStatus::OccupiedOpponentColor {
+    if right_file_idx <= 7 {
+        let right_capture_pos = capture_rank_idx  as usize * 8 + right_file_idx;
+
+        // Regular pawn capture to the right
+        if capture_rank_idx > 0 {
+            if self.get_occupied_status(right_capture_pos)
+                == OccupiedStatus::OccupiedOpponentColor
+            {
                 moves.push(MoveData {
                     start_pos: pos,
-                    end_pos: capture_pos,
+                    end_pos: right_capture_pos,
                     piece: Piece::Pawn,
-                    move_type: MoveType::Regular(Capture(Some(self.data[capture_pos].unwrap().1))),
+                    move_type: MoveType::Regular(Capture(Some(
+                        self.data[right_capture_pos].unwrap().1,
+                    ))),
                 });
-            } else if let Some(i) = self.ep_target {
-                if i == capture_pos {
-                    moves.push(MoveData {
-                        start_pos: pos,
-                        end_pos: capture_pos,
-                        piece: Piece::Pawn,
-                        move_type: MoveType::EnPassant,
-                    });
-                }
+            }
+        } else if capture_rank_idx == 0 {
+            // Pawn promotion with capture to the right
+            if self.get_occupied_status(right_capture_pos)
+                == OccupiedStatus::OccupiedOpponentColor
+            {
+                self.add_promotion_moves(
+                    pos,
+                    right_capture_pos,
+                    Capture(Some(self.data[right_capture_pos].unwrap().1)),
+                    &mut moves,
+                );
+            }
+        };
+
+        // En passant capture to the right
+        if let Some(i) = self.ep_target {
+            if i == right_capture_pos {
+                moves.push(MoveData {
+                    start_pos: pos,
+                    end_pos: right_capture_pos,
+                    piece: Piece::Pawn,
+                    move_type: MoveType::EnPassant,
+                });
             }
         }
+    }
 
         moves
     }
@@ -728,7 +820,9 @@ impl Board {
                             start_pos: pos,
                             end_pos: ray_pos,
                             piece: Piece::Rook,
-                            move_type: MoveType::Regular(Capture(Some(self.data[ray_pos].unwrap().1))),
+                            move_type: MoveType::Regular(Capture(Some(
+                                self.data[ray_pos].unwrap().1,
+                            ))),
                         });
                         break;
                     }
@@ -778,15 +872,13 @@ impl Board {
         for target in self.get_knight_targets(pos) {
             match self.get_occupied_status(target) {
                 OccupiedStatus::OccupiedOwnColor => (),
-                OccupiedStatus::OccupiedOpponentColor =>
-                    new_positions.push(MoveData {
-                        start_pos: pos,
-                        end_pos: target,
-                        piece: Piece::Knight,
-                        move_type: MoveType::Regular(Capture(Some(self.data[target].unwrap().1))),
-                    }),
-                OccupiedStatus::Unoccupied =>
-                    new_positions.push(MoveData {
+                OccupiedStatus::OccupiedOpponentColor => new_positions.push(MoveData {
+                    start_pos: pos,
+                    end_pos: target,
+                    piece: Piece::Knight,
+                    move_type: MoveType::Regular(Capture(Some(self.data[target].unwrap().1))),
+                }),
+                OccupiedStatus::Unoccupied => new_positions.push(MoveData {
                     start_pos: pos,
                     end_pos: target,
                     piece: Piece::Knight,
@@ -861,7 +953,9 @@ impl Board {
                             start_pos: pos,
                             end_pos: ray_pos,
                             piece: Piece::Bishop,
-                            move_type: MoveType::Regular(Capture(Some(self.data[ray_pos].unwrap().1))),
+                            move_type: MoveType::Regular(Capture(Some(
+                                self.data[ray_pos].unwrap().1,
+                            ))),
                         });
                         break;
                     }
