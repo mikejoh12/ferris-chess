@@ -230,7 +230,7 @@ fn pawn_promotion_queen_white() {
         start_pos: Square::A7,
         end_pos: Square::A8,
         piece: Piece::Pawn,
-        move_type: MoveType::QueenPromotion,
+        move_type: MoveType::QueenPromotion(Capture(None)),
     }));
 }
 
@@ -243,7 +243,7 @@ fn pawn_promotion_rook_white() {
         start_pos: Square::A7,
         end_pos: Square::A8,
         piece: Piece::Pawn,
-        move_type: MoveType::RookPromotion,
+        move_type: MoveType::RookPromotion(Capture(None)),
     }));
 }
 
@@ -256,7 +256,7 @@ fn pawn_promotion_bishop_white() {
         start_pos: Square::A7,
         end_pos: Square::A8,
         piece: Piece::Pawn,
-        move_type: MoveType::BishopPromotion,
+        move_type: MoveType::BishopPromotion(Capture(None)),
     }));
 }
 
@@ -269,7 +269,7 @@ fn pawn_promotion_knight_white() {
         start_pos: Square::A7,
         end_pos: Square::A8,
         piece: Piece::Pawn,
-        move_type: MoveType::KnightPromotion,
+        move_type: MoveType::KnightPromotion(Capture(None)),
     }));
 }
 
@@ -282,7 +282,7 @@ fn pawn_promotion_queen_black() {
         start_pos: Square::C2,
         end_pos: Square::C1,
         piece: Piece::Pawn,
-        move_type: MoveType::QueenPromotion,
+        move_type: MoveType::QueenPromotion(Capture(None)),
     }));
 }
 
@@ -295,7 +295,7 @@ fn pawn_promotion_rook_black() {
         start_pos: Square::A7,
         end_pos: Square::A8,
         piece: Piece::Pawn,
-        move_type: MoveType::RookPromotion,
+        move_type: MoveType::RookPromotion(Capture(None)),
     }));
 }
 
@@ -308,7 +308,7 @@ fn pawn_promotion_bishop_black() {
         start_pos: Square::A7,
         end_pos: Square::A8,
         piece: Piece::Pawn,
-        move_type: MoveType::BishopPromotion,
+        move_type: MoveType::BishopPromotion(Capture(None)),
     }));
 }
 
@@ -321,6 +321,6 @@ fn pawn_promotion_knight_black() {
         start_pos: Square::A7,
         end_pos: Square::A8,
         piece: Piece::Pawn,
-        move_type: MoveType::KnightPromotion,
+        move_type: MoveType::KnightPromotion(Capture(None)),
     }));
 }

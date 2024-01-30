@@ -1,4 +1,4 @@
-use ferris_chess_board::{self, MoveType, Piece};
+use ferris_chess_board::{self, MoveType, Capture, Piece};
 
 fn main() {
     let mut board = ferris_chess_board::Board::from_fen(
@@ -17,7 +17,7 @@ fn main() {
         start_pos: 13,
         end_pos: 21,
         piece: Piece::Pawn,
-        move_type: MoveType::Regular,
+        move_type: MoveType::Regular(Capture(None)),
     });
 
     board.print();
@@ -31,7 +31,7 @@ fn main() {
         start_pos: 52,
         end_pos: 36,
         piece: Piece::Pawn,
-        move_type: MoveType::Regular,
+        move_type: MoveType::Regular(Capture(None)),
     });
     board.print();
     valid_moves = board.get_valid_moves();
@@ -44,7 +44,7 @@ fn main() {
         start_pos: 14,
         end_pos: 30,
         piece: Piece::Pawn,
-        move_type: MoveType::Regular,
+        move_type: MoveType::Regular(Capture(None)),
     });
     board.print();
     valid_moves = board.get_valid_moves();
@@ -57,7 +57,7 @@ fn main() {
         start_pos: 59,
         end_pos: 31,
         piece: Piece::Pawn,
-        move_type: MoveType::Regular,
+        move_type: MoveType::Regular(Capture(None)),
     });
     board.print();
     valid_moves = board.get_valid_moves();
