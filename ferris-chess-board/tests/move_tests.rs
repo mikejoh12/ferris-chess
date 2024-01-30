@@ -274,6 +274,32 @@ fn pawn_promotion_knight_white() {
 }
 
 #[test]
+fn pawn_promotion_w_left_capture_white() {
+    let mut board = Board::from_fen("1n1r4/2P2k2/8/8/8/5K2/8/8 w - - 0 1");
+    let result = board.get_valid_moves();
+
+    assert!(result.contains(&MoveData {
+        start_pos: Square::C7,
+        end_pos: Square::B8,
+        piece: Piece::Pawn,
+        move_type: MoveType::QueenPromotion(Capture(Some(Piece::Knight))),
+    }));
+}
+
+#[test]
+fn pawn_promotion_w_right_capture_white() {
+    let mut board = Board::from_fen("1n1r4/2P2k2/8/8/8/5K2/8/8 w - - 0 1");
+    let result = board.get_valid_moves();
+
+    assert!(result.contains(&MoveData {
+        start_pos: Square::C7,
+        end_pos: Square::D8,
+        piece: Piece::Pawn,
+        move_type: MoveType::QueenPromotion(Capture(Some(Piece::Rook))),
+    }));
+}
+
+#[test]
 fn pawn_promotion_queen_black() {
     let mut board = Board::from_fen("8/5k2/8/8/4K3/8/2p5/8 b - - 0 1");
     let result = board.get_valid_moves();
@@ -322,5 +348,31 @@ fn pawn_promotion_knight_black() {
         end_pos: Square::A8,
         piece: Piece::Pawn,
         move_type: MoveType::KnightPromotion(Capture(None)),
+    }));
+}
+
+#[test]
+fn pawn_promotion_w_left_capture_black() {
+    let mut board = Board::from_fen("8/4k3/8/8/8/4K3/6p1/5B1Q b - - 0 1");
+    let result = board.get_valid_moves();
+
+    assert!(result.contains(&MoveData {
+        start_pos: Square::G2,
+        end_pos: Square::F1,
+        piece: Piece::Pawn,
+        move_type: MoveType::QueenPromotion(Capture(Some(Piece::Bishop))),
+    }));
+}
+
+#[test]
+fn pawn_promotion_w_right_capture_black() {
+    let mut board = Board::from_fen("8/4k3/8/8/8/4K3/6p1/5B1Q b - - 0 1");
+    let result = board.get_valid_moves();
+
+    assert!(result.contains(&MoveData {
+        start_pos: Square::G2,
+        end_pos: Square::H1,
+        piece: Piece::Pawn,
+        move_type: MoveType::QueenPromotion(Capture(Some(Piece::Queen))),
     }));
 }
