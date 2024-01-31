@@ -48,7 +48,7 @@ pub enum MoveType {
     KnightPromotion(Capture),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 struct IrreversibleBoardState {
     castling_w_00: bool,
     castling_w_000: bool,
@@ -58,7 +58,7 @@ struct IrreversibleBoardState {
     ep_target: Option<usize>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum GameStatus {
     WhiteWin,
     BlackWin,
@@ -66,7 +66,7 @@ pub enum GameStatus {
     Ongoing,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Board {
     pub game_status: GameStatus,
     pub is_white_to_move: bool,
@@ -489,7 +489,120 @@ impl Board {
         self.is_white_to_move = !self.is_white_to_move;
     }
 
-    pub fn unmake_move(&self) {}
+    pub fn unmake_move(&mut self, last_move: &MoveData) {
+        let irreversible_state = self.irreversible_board_state_stack.pop();
+
+        if let Some(s) = irreversible_state {
+
+            // Reverse color to move since we are going back one move
+            self.is_white_to_move = !self.is_white_to_move;
+
+            let color_to_move = match self.is_white_to_move {
+                true => Color::White,
+                false => Color::Black,
+            };
+            let opponent_color = match self.is_white_to_move {
+                true => Color::Black,
+                false => Color::White,
+            };
+
+            // Restore the "irreversible" board state
+            self.castling_w_00 = s.castling_w_00;
+            self.castling_w_000 = s.castling_w_000;
+            self.castling_b_00 = s.castling_b_000;
+            self.castling_b_000 = s.castling_b_000;
+            self.ep_target = s.ep_target;
+            self.half_moves = s.half_moves;
+
+            // Rewind the full move counter when reversing a black move
+            if !self.is_white_to_move {
+                self.full_moves -= 1;
+            }
+
+            match last_move.move_type {
+                MoveType::Regular(cap) => {
+                    self.data[last_move.start_pos] = Some((color_to_move, last_move.piece));
+                    if let Some(p) = cap.0 {
+                        self.data[last_move.end_pos] = Some((opponent_color, p));
+                    } else {
+                        self.data[last_move.end_pos] = None;
+                    }
+                },
+                MoveType::Castling => {
+                    match (last_move.start_pos, last_move.end_pos) {
+                        (Square::E1, Square::C1) => {
+                            self.data[Square::A1] = Some((Color::White, Piece::Rook));
+                            self.data[Square::E1] = Some((Color::White, Piece::King));
+                            self.data[Square::C1] = None;
+                            self.data[Square::D1] = None;    
+                        },
+                        (Square::E1, Square::G1) => {
+                            self.data[Square::H1] = Some((Color::White, Piece::Rook));
+                            self.data[Square::E1] = Some((Color::White, Piece::King));
+                            self.data[Square::F1] = None;
+                            self.data[Square::G1] = None;    
+                        },
+                        (Square::E8, Square::C8) => {
+                            self.data[Square::A8] = Some((Color::Black, Piece::Rook));
+                            self.data[Square::E8] = Some((Color::Black, Piece::King));
+                            self.data[Square::C8] = None;
+                            self.data[Square::D8] = None;  
+                        },
+                        (Square::E8, Square::G8) => {
+                            self.data[Square::H8] = Some((Color::Black, Piece::Rook));
+                            self.data[Square::E8] = Some((Color::Black, Piece::King));
+                            self.data[Square::F8] = None;
+                            self.data[Square::G8] = None; 
+                        },
+                        _ => panic!("Attempt to reverse invalid castling")
+                    }
+                },
+                MoveType::EnPassant => {
+                    self.data[last_move.start_pos] = Some((color_to_move, Piece::Pawn));
+                    self.data[last_move.end_pos] = None;
+                    
+                    // Replace en passant captured piece
+                    if self.is_white_to_move {
+                        self.data[last_move.end_pos - 8] = Some((Color::Black, Piece::Pawn));
+                    } else {
+                        self.data[last_move.end_pos + 8] = Some((Color::White, Piece::Pawn));
+                    }
+                },
+                MoveType::QueenPromotion(cap) => {
+                    self.unmake_promotion_move(last_move, &cap);
+                },
+                MoveType::RookPromotion(cap) => {
+                    self.unmake_promotion_move(last_move, &cap);
+                },
+                MoveType::BishopPromotion(cap) => {
+                    self.unmake_promotion_move(last_move, &cap);
+                },
+                MoveType::KnightPromotion(cap) => {
+                    self.unmake_promotion_move(last_move, &cap);
+                },
+            }
+        } else {
+            panic!("Attempt to unmake move without irreversible board state stored on stack")
+        }
+    }
+
+    fn unmake_promotion_move(&mut self, last_move: &MoveData, cap: &Capture) {
+        let color_to_move = match self.is_white_to_move {
+            true => Color::White,
+            false => Color::Black,
+        };
+        let opponent_color = match self.is_white_to_move {
+            true => Color::Black,
+            false => Color::White,
+        };
+
+        self.data[last_move.start_pos] = Some((color_to_move, Piece::Pawn));
+        if let Some(p) = cap.0 {
+            self.data[last_move.end_pos] = Some((opponent_color, p));
+        } else {
+            self.data[last_move.end_pos] = None;
+        }  
+    }
 
     fn get_potential_move_positions(&self) -> Vec<(usize, Color, Piece)> {
         let target_color = match self.is_white_to_move {
