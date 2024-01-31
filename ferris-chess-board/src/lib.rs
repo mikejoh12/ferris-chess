@@ -58,7 +58,7 @@ struct IrreversibleBoardState {
     ep_target: Option<usize>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum GameStatus {
     WhiteWin,
     BlackWin,
@@ -76,8 +76,8 @@ pub struct Board {
     castling_b_00: bool,
     castling_b_000: bool,
     ep_target: Option<usize>,
-    half_moves: usize,
-    full_moves: usize,
+    pub half_moves: usize,
+    pub full_moves: usize,
     irreversible_board_state_stack: Vec<IrreversibleBoardState>,
 }
 
@@ -365,14 +365,27 @@ impl Board {
             });
 
         if let Some(piece) = self.data[instr.start_pos] {
+
             match instr.move_type {
-                MoveType::Regular(_) => {
+                MoveType::Regular(cap) => {
                     self.data[instr.end_pos] = Some(piece);
                     self.data[instr.start_pos] = None;
+
+                    // Reset half move clock on pawn move or capture
+                    // Increment it otherwise
+                    if piece.1 == Piece::Pawn || cap != Capture(None) {
+                        self.half_moves = 0;
+                    } else {
+                        self.half_moves += 1;
+                    }
                 }
                 MoveType::Castling => {
                     self.data[instr.end_pos] = Some(piece);
                     self.data[instr.start_pos] = None;
+
+                    // Increment half move clock
+                    self.half_moves += 1;
+
                     match instr.end_pos {
                         Square::C1 => {
                             self.data[Square::D1] = Some((Color::White, Piece::Rook));
@@ -393,6 +406,8 @@ impl Board {
                         _ => panic!("Invalid castling destination square"),
                     }
                 }
+                
+                // Reset half move clock on en passant
                 MoveType::EnPassant => {
                     self.data[instr.end_pos] = Some(piece);
                     self.data[instr.start_pos] = None;
@@ -403,22 +418,30 @@ impl Board {
                     } else {
                         self.data[instr.end_pos + 8] = None
                     }
+                    self.half_moves = 0;
                 }
+
+                // Reset half move clock for the 4 pawn promotions
                 MoveType::QueenPromotion(_) => {
                     self.data[instr.end_pos] = Some((piece.0, Piece::Queen));
                     self.data[instr.start_pos] = None;
+                    self.half_moves = 0;
+
                 }
                 MoveType::RookPromotion(_) => {
                     self.data[instr.end_pos] = Some((piece.0, Piece::Rook));
                     self.data[instr.start_pos] = None;
+                    self.half_moves = 0;
                 }
                 MoveType::BishopPromotion(_) => {
                     self.data[instr.end_pos] = Some((piece.0, Piece::Bishop));
                     self.data[instr.start_pos] = None;
+                    self.half_moves = 0;
                 }
                 MoveType::KnightPromotion(_) => {
                     self.data[instr.end_pos] = Some((piece.0, Piece::Knight));
                     self.data[instr.start_pos] = None;
+                    self.half_moves = 0;
                 }
             };
         }
@@ -1142,6 +1165,10 @@ impl Board {
         }
 
         moves.extend(self.get_castling_moves());
+
+        if self.half_moves >= 100 && !moves.is_empty() {
+            self.game_status = GameStatus::StaleMate;
+        }
 
         if moves.is_empty() {
             self.update_game_status()
