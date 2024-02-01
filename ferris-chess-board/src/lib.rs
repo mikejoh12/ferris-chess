@@ -2,6 +2,7 @@ pub use squares::Square;
 use std::vec;
 
 mod squares;
+mod cache;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Color {
@@ -68,6 +69,7 @@ pub enum GameStatus {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Board {
+    cache: cache::Cache,
     pub game_status: GameStatus,
     pub is_white_to_move: bool,
     pub data: [Option<(Color, Piece)>; 64],
@@ -85,6 +87,10 @@ impl Board {
     // Starting pos: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
     pub fn from_fen(fen: &str) -> Self {
         let mut data: [Option<(Color, Piece)>; 64] = [None; 64];
+        
+        let cache_builder = cache::Cache::builder();
+        let cache = cache_builder.build();
+
         let mut sections = fen.split(" ");
         let pieces = sections
             .next()
@@ -168,6 +174,7 @@ impl Board {
             .expect("Full move counter should parse");
 
         Board {
+            cache,
             is_white_to_move,
             data,
             castling_w_00,
@@ -253,9 +260,9 @@ impl Board {
         };
 
         // Rook and queen threat
-        for ray in self.get_rook_rays(pos) {
+        for ray in &self.cache.rook_rays[pos] {
             for ray_pos in ray {
-                match self.data[ray_pos] {
+                match self.data[*ray_pos] {
                     Some(piece) => match (piece.0 == opponent_color, piece.1) {
                         (true, Piece::Rook) => return true,
                         (true, Piece::Queen) => return true,
@@ -267,9 +274,9 @@ impl Board {
         }
 
         // Bishop and queen threat
-        for ray in self.get_bishop_rays(pos) {
+        for ray in &self.cache.bishop_rays[pos] {
             for ray_pos in ray {
-                match self.data[ray_pos] {
+                match self.data[*ray_pos] {
                     Some(piece) => match (piece.0 == opponent_color, piece.1) {
                         (true, Piece::Bishop) => return true,
                         (true, Piece::Queen) => return true,
@@ -907,64 +914,28 @@ impl Board {
         moves
     }
 
-    fn get_rook_rays(&self, pos: usize) -> Vec<Vec<usize>> {
-        let mut rook_rays: Vec<Vec<usize>> = vec![];
-
-        let mut up: Vec<usize> = vec![];
-        let mut up_pos = pos.checked_sub(8);
-        while let Some(v) = up_pos {
-            up.push(v);
-            up_pos = v.checked_sub(8);
-        }
-        rook_rays.push(up);
-
-        let mut down: Vec<usize> = vec![];
-        let mut down_pos = pos + 8;
-        while down_pos < 64 {
-            down.push(down_pos);
-            down_pos += 8;
-        }
-        rook_rays.push(down);
-
-        let file_idx = pos % 8;
-
-        let mut right: Vec<usize> = vec![];
-        for p in (pos + 1)..(pos + 8 - file_idx) {
-            right.push(p);
-        }
-        rook_rays.push(right);
-
-        let mut left: Vec<usize> = vec![];
-        for p in ((pos - file_idx)..pos).rev() {
-            left.push(p);
-        }
-        rook_rays.push(left);
-
-        rook_rays
-    }
-
     fn get_rook_moves(&self, pos: usize) -> Vec<MoveData> {
         let mut new_positions: Vec<MoveData> = vec![];
 
-        let rook_rays = self.get_rook_rays(pos);
+        let rook_rays = &self.cache.rook_rays[pos];
         for ray in rook_rays {
             for ray_pos in ray {
-                match self.get_occupied_status(ray_pos) {
+                match self.get_occupied_status(*ray_pos) {
                     OccupiedStatus::OccupiedOwnColor => break,
                     OccupiedStatus::OccupiedOpponentColor => {
                         new_positions.push(MoveData {
                             start_pos: pos,
-                            end_pos: ray_pos,
+                            end_pos: *ray_pos,
                             piece: Piece::Rook,
                             move_type: MoveType::Regular(Capture(Some(
-                                self.data[ray_pos].unwrap().1,
+                                self.data[*ray_pos].unwrap().1,
                             ))),
                         });
                         break;
                     }
                     OccupiedStatus::Unoccupied => new_positions.push(MoveData {
                         start_pos: pos,
-                        end_pos: ray_pos,
+                        end_pos: *ray_pos,
                         piece: Piece::Rook,
                         move_type: MoveType::Regular(Capture(None)),
                     }),
@@ -1026,78 +997,27 @@ impl Board {
         new_positions
     }
 
-    fn get_bishop_rays(&self, pos: usize) -> Vec<Vec<usize>> {
-        let mut bishop_rays: Vec<Vec<usize>> = vec![];
-
-        let mut down_left: Vec<usize> = vec![];
-        let mut down_left_pos = pos.checked_sub(9);
-        while let Some(v) = down_left_pos {
-            if v % 8 == 7 {
-                break;
-            }
-            down_left.push(v);
-            down_left_pos = v.checked_sub(9);
-        }
-        bishop_rays.push(down_left);
-
-        let mut down_right: Vec<usize> = vec![];
-        let mut down_right_pos = pos.checked_sub(7);
-        while let Some(v) = down_right_pos {
-            if v % 8 == 0 {
-                break;
-            }
-            down_right.push(v);
-            down_right_pos = v.checked_sub(7);
-        }
-        bishop_rays.push(down_right);
-
-        let mut up_right: Vec<usize> = vec![];
-        let mut up_right_pos = pos + 9;
-        while up_right_pos < 64 {
-            if up_right_pos % 8 == 0 {
-                break;
-            }
-            up_right.push(up_right_pos);
-            up_right_pos += 9;
-        }
-        bishop_rays.push(up_right);
-
-        let mut up_left: Vec<usize> = vec![];
-        let mut up_left_pos = pos + 7;
-        while up_left_pos < 64 {
-            if up_left_pos % 8 == 7 {
-                break;
-            }
-            up_left.push(up_left_pos);
-            up_left_pos += 7;
-        }
-        bishop_rays.push(up_left);
-
-        bishop_rays
-    }
-
     fn get_bishop_moves(&self, pos: usize) -> Vec<MoveData> {
         let mut new_positions: Vec<MoveData> = vec![];
 
-        let bishop_rays = self.get_bishop_rays(pos);
-        for ray in bishop_rays {
+        for ray in &self.cache.bishop_rays[pos] {
             for ray_pos in ray {
-                match self.get_occupied_status(ray_pos) {
+                match self.get_occupied_status(*ray_pos) {
                     OccupiedStatus::OccupiedOwnColor => break,
                     OccupiedStatus::OccupiedOpponentColor => {
                         new_positions.push(MoveData {
                             start_pos: pos,
-                            end_pos: ray_pos,
+                            end_pos: *ray_pos,
                             piece: Piece::Bishop,
                             move_type: MoveType::Regular(Capture(Some(
-                                self.data[ray_pos].unwrap().1,
+                                self.data[*ray_pos].unwrap().1,
                             ))),
                         });
                         break;
                     }
                     OccupiedStatus::Unoccupied => new_positions.push(MoveData {
                         start_pos: pos,
-                        end_pos: ray_pos,
+                        end_pos: *ray_pos,
                         piece: Piece::Bishop,
                         move_type: MoveType::Regular(Capture(None)),
                     }),
