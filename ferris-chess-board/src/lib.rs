@@ -288,8 +288,8 @@ impl Board {
         }
 
         // Knight threat
-        for threat_position in self.get_knight_targets(pos) {
-            match self.data[threat_position] {
+        for threat_position in &self.cache.knight_targets[pos] {
+            match self.data[*threat_position] {
                 Some(piece) => match (piece.0 == opponent_color, piece.1) {
                     (true, Piece::Knight) => return true,
                     _ => (),
@@ -946,48 +946,21 @@ impl Board {
         new_positions
     }
 
-    fn get_knight_targets(&self, pos: usize) -> Vec<usize> {
-        let mut targets: Vec<usize> = vec![];
-        let rank_idx = pos / 8;
-        let file_idx = pos % 8;
-
-        let offsets: [[isize; 2]; 8] = [
-            [2, -1],
-            [2, 1],
-            [1, 2],
-            [-1, 2],
-            [-2, 1],
-            [-2, -1],
-            [-1, -2],
-            [1, -2],
-        ];
-        for [rank_offset, file_offset] in offsets {
-            let new_rank = rank_idx as isize + rank_offset;
-            let new_file = file_idx as isize + file_offset;
-            if new_rank >= 0 && new_rank < 8 && new_file >= 0 && new_file < 8 {
-                let new_pos = new_rank as usize * 8 + new_file as usize;
-                targets.push(new_pos);
-            }
-        }
-
-        targets
-    }
-
     fn get_knight_moves(&self, pos: usize) -> Vec<MoveData> {
         let mut new_positions: Vec<MoveData> = vec![];
 
-        for target in self.get_knight_targets(pos) {
-            match self.get_occupied_status(target) {
+        for target in &self.cache.knight_targets[pos] {
+            match self.get_occupied_status(*target) {
                 OccupiedStatus::OccupiedOwnColor => (),
                 OccupiedStatus::OccupiedOpponentColor => new_positions.push(MoveData {
                     start_pos: pos,
-                    end_pos: target,
+                    end_pos: *target,
                     piece: Piece::Knight,
-                    move_type: MoveType::Regular(Capture(Some(self.data[target].unwrap().1))),
+                    move_type: MoveType::Regular(Capture(Some(self.data[*target].unwrap().1))),
                 }),
                 OccupiedStatus::Unoccupied => new_positions.push(MoveData {
                     start_pos: pos,
-                    end_pos: target,
+                    end_pos: *target,
                     piece: Piece::Knight,
                     move_type: MoveType::Regular(Capture(None)),
                 }),

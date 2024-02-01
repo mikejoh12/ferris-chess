@@ -3,42 +3,21 @@ pub struct Cache {
     // Lots of complicated fields.
     pub rook_rays: Vec<Vec<Vec<usize>>>,
     pub bishop_rays: Vec<Vec<Vec<usize>>>,
+    pub knight_targets: Vec<Vec<usize>>,
 }
 
 impl Cache {
-    // This method will help users to discover the builder
     pub fn builder() -> CacheBuilder {
         CacheBuilder::default()
     }
 }
 
 #[derive(Default)]
-pub struct CacheBuilder {
-    // Probably lots of optional fields.
-    // bar: String,
-}
+pub struct CacheBuilder {}
 
 impl CacheBuilder {
-    pub fn new(/* ... */) -> CacheBuilder {
-        // Set the minimally required fields of Cache.
-        CacheBuilder {
-            // bar: String::from("X"),
-        }
-    }
-
-    pub fn name(mut self, /* bar: String */) -> CacheBuilder {
-        // Set the name on the builder itself, and return the builder by value.
-        // self.bar = bar;
-        self
-    }
-
-    // If we can get away with not consuming the Builder here, that is an
-    // advantage. It means we can use the FooBuilder as a template for constructing
-    // many Foos.
     pub fn build(self) -> Cache {
-        // Create a Foo from the FooBuilder, applying all settings in FooBuilder
-        // to Foo.
-        Cache { rook_rays: self.get_board_rook_rays(), bishop_rays: self.get_board_bishop_rays()}
+        Cache { rook_rays: self.get_board_rook_rays(), bishop_rays: self.get_board_bishop_rays(), knight_targets: self.get_board_knight_targets()}
     }
 
     fn get_board_rook_rays(&self) -> Vec<Vec<Vec<usize>>> {
@@ -142,65 +121,39 @@ impl CacheBuilder {
 
         bishop_rays
     }
-}
 
-
-/*
-#[derive(Debug, Clone, PartialEq)]
-pub struct Targets {
-    rook_rays: Vec<Vec<Vec<usize>>>,
-}
-
-impl Targets {
-    pub fn new() -> Targets {
-        Targets {
-            rook_rays: self.get_board_rook_rays(),
-        }
-    }
-
-    fn get_board_rook_rays(&self) -> Vec<Vec<Vec<usize>>> {
+    fn get_board_knight_targets(&self) -> Vec<Vec<usize>> {
         let mut rays = vec![];
         for pos in 0..64 {
-            rays.push(self.get_rook_rays(pos));
+            rays.push(self.get_knight_targets(pos));
         }
         rays
     }
 
-    fn get_rook_rays(&self, pos: usize) -> Vec<Vec<usize>> {
-        let mut rook_rays: Vec<Vec<usize>> = vec![];
-
-        let mut up: Vec<usize> = vec![];
-        let mut up_pos = pos.checked_sub(8);
-        while let Some(v) = up_pos {
-            up.push(v);
-            up_pos = v.checked_sub(8);
-        }
-        rook_rays.push(up);
-
-        let mut down: Vec<usize> = vec![];
-        let mut down_pos = pos + 8;
-        while down_pos < 64 {
-            down.push(down_pos);
-            down_pos += 8;
-        }
-        rook_rays.push(down);
-
+    fn get_knight_targets(&self, pos: usize) -> Vec<usize> {
+        let mut targets: Vec<usize> = vec![];
+        let rank_idx = pos / 8;
         let file_idx = pos % 8;
 
-        let mut right: Vec<usize> = vec![];
-        for p in (pos + 1)..(pos + 8 - file_idx) {
-            right.push(p);
+        let offsets: [[isize; 2]; 8] = [
+            [2, -1],
+            [2, 1],
+            [1, 2],
+            [-1, 2],
+            [-2, 1],
+            [-2, -1],
+            [-1, -2],
+            [1, -2],
+        ];
+        for [rank_offset, file_offset] in offsets {
+            let new_rank = rank_idx as isize + rank_offset;
+            let new_file = file_idx as isize + file_offset;
+            if new_rank >= 0 && new_rank < 8 && new_file >= 0 && new_file < 8 {
+                let new_pos = new_rank as usize * 8 + new_file as usize;
+                targets.push(new_pos);
+            }
         }
-        rook_rays.push(right);
 
-        let mut left: Vec<usize> = vec![];
-        for p in ((pos - file_idx)..pos).rev() {
-            left.push(p);
-        }
-        rook_rays.push(left);
-
-        rook_rays
+        targets
     }
 }
-
-*/

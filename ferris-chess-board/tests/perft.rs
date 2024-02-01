@@ -18,7 +18,6 @@ fn perft(depth: u8, board: &mut Board) -> usize {
     nodes
 }
 
-#[ignore]
 #[test]
 fn perft_n_1() {
     let mut board = Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
@@ -26,7 +25,6 @@ fn perft_n_1() {
     assert_eq!(result, 20);
 }
 
-#[ignore]
 #[test]
 fn perft_n_2() {
     let mut board = Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
@@ -34,7 +32,6 @@ fn perft_n_2() {
     assert_eq!(result, 400);
 }
 
-#[ignore]
 #[test]
 fn perft_n_3() {
     let mut board = Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
@@ -42,7 +39,6 @@ fn perft_n_3() {
     assert_eq!(result, 8902);
 }
 
-#[ignore]
 #[test]
 fn perft_n_4() {
     let mut board = Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
@@ -50,7 +46,6 @@ fn perft_n_4() {
     assert_eq!(result, 197281);
 }
 
-#[ignore]
 #[test]
 fn perft_n_5() {
     let mut board = Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
@@ -59,6 +54,7 @@ fn perft_n_5() {
 }
 
 // Pre optimization perft n 6 = 89.83s cargo test --release
+#[ignore]
 #[test]
 fn perft_n_6() {
     let mut board = Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
