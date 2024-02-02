@@ -379,9 +379,15 @@ fn pawn_promotion_w_right_capture_black() {
 
 #[test]
 fn half_move_clock_reset_on_pawn_move() {
-    let mut board = Board::from_fen("r1b1k2r/pppp1ppp/2nb1q1n/4p3/4P3/2NB1Q1N/PPPP1PPP/R1B1K2R w KQkq - 8 6");
+    let mut board =
+        Board::from_fen("r1b1k2r/pppp1ppp/2nb1q1n/4p3/4P3/2NB1Q1N/PPPP1PPP/R1B1K2R w KQkq - 8 6");
     let result = board.get_valid_moves();
-    let pawn_move = MoveData { start_pos: Square::A2, end_pos: Square::A3, piece: Piece::Pawn, move_type: MoveType::Regular(Capture(None)) };
+    let pawn_move = MoveData {
+        start_pos: Square::A2,
+        end_pos: Square::A3,
+        piece: Piece::Pawn,
+        move_type: MoveType::Regular(Capture(None)),
+    };
     assert!(result.contains(&pawn_move));
     board.make_move(&pawn_move);
     assert_eq!(board.half_moves, 0);
@@ -389,9 +395,15 @@ fn half_move_clock_reset_on_pawn_move() {
 
 #[test]
 fn half_move_clock_reset_on_capture() {
-    let mut board = Board::from_fen("r1b1k2r/pppp1ppp/2nb1q1n/4p3/4P3/2NB1Q1N/PPPP1PPP/R1B1K2R w KQkq - 8 6");
+    let mut board =
+        Board::from_fen("r1b1k2r/pppp1ppp/2nb1q1n/4p3/4P3/2NB1Q1N/PPPP1PPP/R1B1K2R w KQkq - 8 6");
     let result = board.get_valid_moves();
-    let queen_move = MoveData { start_pos: Square::F3, end_pos: Square::F6, piece: Piece::Queen, move_type: MoveType::Regular(Capture(Some(Piece::Queen))) };
+    let queen_move = MoveData {
+        start_pos: Square::F3,
+        end_pos: Square::F6,
+        piece: Piece::Queen,
+        move_type: MoveType::Regular(Capture(Some(Piece::Queen))),
+    };
     assert!(result.contains(&queen_move));
     board.make_move(&queen_move);
     assert_eq!(board.half_moves, 0);
@@ -399,9 +411,15 @@ fn half_move_clock_reset_on_capture() {
 
 #[test]
 fn half_move_clock_inc_on_non_capture_move() {
-    let mut board = Board::from_fen("r1b1k2r/pppp1ppp/2nb1q1n/4p3/4P3/2NB1Q1N/PPPP1PPP/R1B1K2R w KQkq - 8 6");
+    let mut board =
+        Board::from_fen("r1b1k2r/pppp1ppp/2nb1q1n/4p3/4P3/2NB1Q1N/PPPP1PPP/R1B1K2R w KQkq - 8 6");
     let result = board.get_valid_moves();
-    let bishop_move = MoveData { start_pos: Square::D3, end_pos: Square::B5, piece: Piece::Bishop, move_type: MoveType::Regular(Capture(None)) };
+    let bishop_move = MoveData {
+        start_pos: Square::D3,
+        end_pos: Square::B5,
+        piece: Piece::Bishop,
+        move_type: MoveType::Regular(Capture(None)),
+    };
     assert!(result.contains(&bishop_move));
     board.make_move(&bishop_move);
     assert_eq!(board.half_moves, 9);
@@ -411,7 +429,12 @@ fn half_move_clock_inc_on_non_capture_move() {
 fn half_move_clock_100_count_is_stalemate() {
     let mut board = Board::from_fen("8/4k1b1/8/8/2B2N2/4K3/8/8 w - - 99 1");
     let result = board.get_valid_moves();
-    let bishop_move = MoveData { start_pos: Square::C4, end_pos: Square::B5, piece: Piece::Bishop, move_type: MoveType::Regular(Capture(None)) };
+    let bishop_move = MoveData {
+        start_pos: Square::C4,
+        end_pos: Square::B5,
+        piece: Piece::Bishop,
+        move_type: MoveType::Regular(Capture(None)),
+    };
     assert!(result.contains(&bishop_move));
     board.make_move(&bishop_move);
     let _ = board.get_valid_moves();

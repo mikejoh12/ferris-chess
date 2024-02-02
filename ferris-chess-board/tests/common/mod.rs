@@ -1,12 +1,11 @@
 use ferris_chess_board::*;
 
 pub fn perft(depth: u8, board: &mut Board) -> usize {
-
     let moves = board.get_valid_moves();
     let mut nodes = 0;
-    
+
     if depth == 1 {
-        return moves.len()
+        return moves.len();
     };
 
     for m in moves {

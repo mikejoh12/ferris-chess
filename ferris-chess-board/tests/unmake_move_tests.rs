@@ -6,7 +6,12 @@ fn unmake_white_double_pawn_push() {
     let starting_board = board.clone();
 
     let result = board.get_valid_moves();
-    let pawn_move = MoveData { start_pos: Square::E2, end_pos: Square::E4, piece: Piece::Pawn, move_type: MoveType::Regular(Capture(None)) };
+    let pawn_move = MoveData {
+        start_pos: Square::E2,
+        end_pos: Square::E4,
+        piece: Piece::Pawn,
+        move_type: MoveType::Regular(Capture(None)),
+    };
     assert!(result.contains(&pawn_move));
     board.make_move(&pawn_move);
     board.unmake_move(&pawn_move);
@@ -19,27 +24,38 @@ fn unmake_white_capture_with_bishop() {
     let starting_board = board.clone();
 
     let result = board.get_valid_moves();
-    let bishop_move = MoveData { start_pos: Square::F1, end_pos: Square::B5, piece: Piece::Bishop, move_type: MoveType::Regular(Capture(Some(Piece::Pawn))) };
+    let bishop_move = MoveData {
+        start_pos: Square::F1,
+        end_pos: Square::B5,
+        piece: Piece::Bishop,
+        move_type: MoveType::Regular(Capture(Some(Piece::Pawn))),
+    };
     assert!(result.contains(&bishop_move));
 
     board.make_move(&bishop_move);
     board.unmake_move(&bishop_move);
-    
+
     assert_eq!(starting_board, board);
 }
 
 #[test]
 fn unmake_black_capture_with_knight() {
-    let mut board = Board::from_fen("r1bqkbnr/pppp1ppp/2n5/4p3/3PP3/2N5/PPP2PPP/R1BQKBNR b KQkq d3 0 3");
+    let mut board =
+        Board::from_fen("r1bqkbnr/pppp1ppp/2n5/4p3/3PP3/2N5/PPP2PPP/R1BQKBNR b KQkq d3 0 3");
     let starting_board = board.clone();
 
     let result = board.get_valid_moves();
-    let knight_move = MoveData { start_pos: Square::C6, end_pos: Square::D4, piece: Piece::Knight, move_type: MoveType::Regular(Capture(Some(Piece::Pawn))) };
+    let knight_move = MoveData {
+        start_pos: Square::C6,
+        end_pos: Square::D4,
+        piece: Piece::Knight,
+        move_type: MoveType::Regular(Capture(Some(Piece::Pawn))),
+    };
     assert!(result.contains(&knight_move));
 
     board.make_move(&knight_move);
     board.unmake_move(&knight_move);
-    
+
     assert_eq!(starting_board, board);
 }
 
@@ -56,14 +72,14 @@ fn unmake_white_castling_queen_side() {
         start_pos: Square::E1,
         end_pos: Square::C1,
         piece: Piece::King,
-        move_type: MoveType::Castling
+        move_type: MoveType::Castling,
     };
 
     assert!(w_moves.contains(w_queen_castling));
 
     board.make_move(w_queen_castling);
     board.unmake_move(w_queen_castling);
-    
+
     assert_eq!(board, start_position);
 }
 
@@ -80,14 +96,14 @@ fn unmake_black_castling_queen_side() {
         start_pos: Square::E8,
         end_pos: Square::C8,
         piece: Piece::King,
-        move_type: MoveType::Castling
+        move_type: MoveType::Castling,
     };
 
     assert!(b_moves.contains(b_queen_castling));
 
     board.make_move(b_queen_castling);
     board.unmake_move(b_queen_castling);
-    
+
     assert_eq!(board, start_position);
 }
 
@@ -104,14 +120,14 @@ fn unmake_white_castling_king_side() {
         start_pos: Square::E1,
         end_pos: Square::G1,
         piece: Piece::King,
-        move_type: MoveType::Castling
+        move_type: MoveType::Castling,
     };
 
     assert!(w_moves.contains(w_king_castling));
 
     board.make_move(w_king_castling);
     board.unmake_move(w_king_castling);
-    
+
     assert_eq!(board, start_position);
 }
 
@@ -128,14 +144,14 @@ fn unmake_black_castling_king_side() {
         start_pos: Square::E8,
         end_pos: Square::G8,
         piece: Piece::King,
-        move_type: MoveType::Castling
+        move_type: MoveType::Castling,
     };
 
     assert!(b_moves.contains(b_king_castling));
 
     board.make_move(b_king_castling);
     board.unmake_move(b_king_castling);
-    
+
     assert_eq!(board, start_position);
 }
 
@@ -144,7 +160,7 @@ fn unmake_white_en_passant() {
     let mut board =
         Board::from_fen("rnbqkbnr/2pp1pp1/pp5p/3PpP2/8/8/PPP1P1PP/RNBQKBNR w KQkq e6 0 5");
     let start_board = board.clone();
-    
+
     let w_moves = board.get_valid_moves();
 
     let ep_move = &MoveData {
@@ -155,7 +171,7 @@ fn unmake_white_en_passant() {
     };
 
     assert!(w_moves.contains(ep_move));
-    
+
     board.make_move(ep_move);
     board.unmake_move(ep_move);
 
@@ -167,7 +183,7 @@ fn unmake_black_en_passant() {
     let mut board =
         Board::from_fen("rnbqkbnr/ppp1p1pp/8/8/3pPp2/PP4PP/2PP1P2/RNBQKBNR b KQkq e3 0 5");
     let start_board = board.clone();
-    
+
     let b_moves = board.get_valid_moves();
 
     let ep_move = &MoveData {
@@ -178,7 +194,7 @@ fn unmake_black_en_passant() {
     };
 
     assert!(b_moves.contains(ep_move));
-    
+
     board.make_move(ep_move);
     board.unmake_move(ep_move);
 

@@ -2,7 +2,6 @@ use ferris_chess_board::*;
 mod common;
 use common::perft;
 
-
 #[test]
 fn perft_n_1() {
     let mut board = Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");

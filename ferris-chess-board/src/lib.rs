@@ -1,8 +1,8 @@
 pub use squares::Square;
 use std::vec;
 
-mod squares;
 mod cache;
+mod squares;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Color {
@@ -77,7 +77,7 @@ pub struct Board {
     castling_w_000: bool,
     castling_b_00: bool,
     castling_b_000: bool,
-    ep_target: Option<usize>,
+    pub ep_target: Option<usize>,
     pub half_moves: usize,
     pub full_moves: usize,
     irreversible_board_state_stack: Vec<IrreversibleBoardState>,
@@ -87,7 +87,7 @@ impl Board {
     // Starting pos: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
     pub fn from_fen(fen: &str) -> Self {
         let mut data: [Option<(Color, Piece)>; 64] = [None; 64];
-        
+
         let cache_builder = cache::Cache::builder();
         let cache = cache_builder.build();
 
@@ -372,7 +372,6 @@ impl Board {
             });
 
         if let Some(piece) = self.data[instr.start_pos] {
-
             match instr.move_type {
                 MoveType::Regular(cap) => {
                     self.data[instr.end_pos] = Some(piece);
@@ -413,7 +412,7 @@ impl Board {
                         _ => panic!("Invalid castling destination square"),
                     }
                 }
-                
+
                 // Reset half move clock on en passant
                 MoveType::EnPassant => {
                     self.data[instr.end_pos] = Some(piece);
@@ -433,7 +432,6 @@ impl Board {
                     self.data[instr.end_pos] = Some((piece.0, Piece::Queen));
                     self.data[instr.start_pos] = None;
                     self.half_moves = 0;
-
                 }
                 MoveType::RookPromotion(_) => {
                     self.data[instr.end_pos] = Some((piece.0, Piece::Rook));
@@ -500,7 +498,6 @@ impl Board {
         let irreversible_state = self.irreversible_board_state_stack.pop();
 
         if let Some(s) = irreversible_state {
-
             // Reverse color to move since we are going back one move
             self.is_white_to_move = !self.is_white_to_move;
 
@@ -534,59 +531,57 @@ impl Board {
                     } else {
                         self.data[last_move.end_pos] = None;
                     }
-                },
-                MoveType::Castling => {
-                    match (last_move.start_pos, last_move.end_pos) {
-                        (Square::E1, Square::C1) => {
-                            self.data[Square::A1] = Some((Color::White, Piece::Rook));
-                            self.data[Square::E1] = Some((Color::White, Piece::King));
-                            self.data[Square::C1] = None;
-                            self.data[Square::D1] = None;    
-                        },
-                        (Square::E1, Square::G1) => {
-                            self.data[Square::H1] = Some((Color::White, Piece::Rook));
-                            self.data[Square::E1] = Some((Color::White, Piece::King));
-                            self.data[Square::F1] = None;
-                            self.data[Square::G1] = None;    
-                        },
-                        (Square::E8, Square::C8) => {
-                            self.data[Square::A8] = Some((Color::Black, Piece::Rook));
-                            self.data[Square::E8] = Some((Color::Black, Piece::King));
-                            self.data[Square::C8] = None;
-                            self.data[Square::D8] = None;  
-                        },
-                        (Square::E8, Square::G8) => {
-                            self.data[Square::H8] = Some((Color::Black, Piece::Rook));
-                            self.data[Square::E8] = Some((Color::Black, Piece::King));
-                            self.data[Square::F8] = None;
-                            self.data[Square::G8] = None; 
-                        },
-                        _ => panic!("Attempt to reverse invalid castling")
+                }
+                MoveType::Castling => match (last_move.start_pos, last_move.end_pos) {
+                    (Square::E1, Square::C1) => {
+                        self.data[Square::A1] = Some((Color::White, Piece::Rook));
+                        self.data[Square::E1] = Some((Color::White, Piece::King));
+                        self.data[Square::C1] = None;
+                        self.data[Square::D1] = None;
                     }
+                    (Square::E1, Square::G1) => {
+                        self.data[Square::H1] = Some((Color::White, Piece::Rook));
+                        self.data[Square::E1] = Some((Color::White, Piece::King));
+                        self.data[Square::F1] = None;
+                        self.data[Square::G1] = None;
+                    }
+                    (Square::E8, Square::C8) => {
+                        self.data[Square::A8] = Some((Color::Black, Piece::Rook));
+                        self.data[Square::E8] = Some((Color::Black, Piece::King));
+                        self.data[Square::C8] = None;
+                        self.data[Square::D8] = None;
+                    }
+                    (Square::E8, Square::G8) => {
+                        self.data[Square::H8] = Some((Color::Black, Piece::Rook));
+                        self.data[Square::E8] = Some((Color::Black, Piece::King));
+                        self.data[Square::F8] = None;
+                        self.data[Square::G8] = None;
+                    }
+                    _ => panic!("Attempt to reverse invalid castling"),
                 },
                 MoveType::EnPassant => {
                     self.data[last_move.start_pos] = Some((color_to_move, Piece::Pawn));
                     self.data[last_move.end_pos] = None;
-                    
+
                     // Replace en passant captured piece
                     if self.is_white_to_move {
                         self.data[last_move.end_pos - 8] = Some((Color::Black, Piece::Pawn));
                     } else {
                         self.data[last_move.end_pos + 8] = Some((Color::White, Piece::Pawn));
                     }
-                },
+                }
                 MoveType::QueenPromotion(cap) => {
                     self.unmake_promotion_move(last_move, &cap);
-                },
+                }
                 MoveType::RookPromotion(cap) => {
                     self.unmake_promotion_move(last_move, &cap);
-                },
+                }
                 MoveType::BishopPromotion(cap) => {
                     self.unmake_promotion_move(last_move, &cap);
-                },
+                }
                 MoveType::KnightPromotion(cap) => {
                     self.unmake_promotion_move(last_move, &cap);
-                },
+                }
             }
         } else {
             panic!("Attempt to unmake move without irreversible board state stored on stack")
@@ -608,7 +603,7 @@ impl Board {
             self.data[last_move.end_pos] = Some((opponent_color, p));
         } else {
             self.data[last_move.end_pos] = None;
-        }  
+        }
     }
 
     fn get_potential_move_positions(&self) -> Vec<(usize, Color, Piece)> {
@@ -864,52 +859,52 @@ impl Board {
             }
         }
 
-    // Right down pawn capture (looking at board from White's position)
-    let right_file_idx = file_idx + 1;
+        // Right down pawn capture (looking at board from White's position)
+        let right_file_idx = file_idx + 1;
 
-    if right_file_idx <= 7 {
-        let right_capture_pos = capture_rank_idx  as usize * 8 + right_file_idx;
+        if right_file_idx <= 7 {
+            let right_capture_pos = capture_rank_idx as usize * 8 + right_file_idx;
 
-        // Regular pawn capture to the right
-        if capture_rank_idx > 0 {
-            if self.get_occupied_status(right_capture_pos)
-                == OccupiedStatus::OccupiedOpponentColor
-            {
-                moves.push(MoveData {
-                    start_pos: pos,
-                    end_pos: right_capture_pos,
-                    piece: Piece::Pawn,
-                    move_type: MoveType::Regular(Capture(Some(
-                        self.data[right_capture_pos].unwrap().1,
-                    ))),
-                });
-            }
-        } else if capture_rank_idx == 0 {
-            // Pawn promotion with capture to the right
-            if self.get_occupied_status(right_capture_pos)
-                == OccupiedStatus::OccupiedOpponentColor
-            {
-                self.add_promotion_moves(
-                    pos,
-                    right_capture_pos,
-                    Capture(Some(self.data[right_capture_pos].unwrap().1)),
-                    &mut moves,
-                );
-            }
-        };
+            // Regular pawn capture to the right
+            if capture_rank_idx > 0 {
+                if self.get_occupied_status(right_capture_pos)
+                    == OccupiedStatus::OccupiedOpponentColor
+                {
+                    moves.push(MoveData {
+                        start_pos: pos,
+                        end_pos: right_capture_pos,
+                        piece: Piece::Pawn,
+                        move_type: MoveType::Regular(Capture(Some(
+                            self.data[right_capture_pos].unwrap().1,
+                        ))),
+                    });
+                }
+            } else if capture_rank_idx == 0 {
+                // Pawn promotion with capture to the right
+                if self.get_occupied_status(right_capture_pos)
+                    == OccupiedStatus::OccupiedOpponentColor
+                {
+                    self.add_promotion_moves(
+                        pos,
+                        right_capture_pos,
+                        Capture(Some(self.data[right_capture_pos].unwrap().1)),
+                        &mut moves,
+                    );
+                }
+            };
 
-        // En passant capture to the right
-        if let Some(i) = self.ep_target {
-            if i == right_capture_pos {
-                moves.push(MoveData {
-                    start_pos: pos,
-                    end_pos: right_capture_pos,
-                    piece: Piece::Pawn,
-                    move_type: MoveType::EnPassant,
-                });
+            // En passant capture to the right
+            if let Some(i) = self.ep_target {
+                if i == right_capture_pos {
+                    moves.push(MoveData {
+                        start_pos: pos,
+                        end_pos: right_capture_pos,
+                        piece: Piece::Pawn,
+                        move_type: MoveType::EnPassant,
+                    });
+                }
             }
         }
-    }
 
         moves
     }
@@ -1021,7 +1016,9 @@ impl Board {
                     start_pos: pos,
                     end_pos: *neighbor_pos,
                     piece: Piece::King,
-                    move_type: MoveType::Regular(Capture(Some(self.data[*neighbor_pos].unwrap().1))),
+                    move_type: MoveType::Regular(Capture(Some(
+                        self.data[*neighbor_pos].unwrap().1,
+                    ))),
                 }),
                 OccupiedStatus::Unoccupied => new_positions.push(MoveData {
                     start_pos: pos,
@@ -1116,11 +1113,29 @@ impl Board {
         self.data[move_data.end_pos] = self.data[move_data.start_pos];
         self.data[move_data.start_pos] = None;
 
-        let is_legal = !self.is_position_threatened(self.get_king_pos());
+        if move_data.move_type == MoveType::EnPassant {
+            if self.is_white_to_move {
+                self.data[move_data.end_pos - 8] = None;
+            } else {
+                self.data[move_data.end_pos + 8] = None;
+            }
 
-        self.data[move_data.start_pos] = self.data[move_data.end_pos];
-        self.data[move_data.end_pos] = temp;
-        is_legal
+            let is_legal = !self.is_position_threatened(self.get_king_pos());
+            self.data[move_data.start_pos] = self.data[move_data.end_pos];
+            self.data[move_data.end_pos] = temp;
+
+            if self.is_white_to_move {
+                self.data[move_data.end_pos - 8] = Some((Color::Black, Piece::Pawn));
+            } else {
+                self.data[move_data.end_pos + 8] = Some((Color::White, Piece::Pawn));
+            }
+            is_legal
+        } else {
+            let is_legal = !self.is_position_threatened(self.get_king_pos());
+            self.data[move_data.start_pos] = self.data[move_data.end_pos];
+            self.data[move_data.end_pos] = temp;
+            is_legal
+        }
     }
 
     pub fn get_valid_moves(&mut self) -> Vec<MoveData> {

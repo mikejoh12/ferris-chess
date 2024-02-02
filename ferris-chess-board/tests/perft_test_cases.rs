@@ -8,6 +8,7 @@ fn perft_pos_1() {
     assert_eq!(result, 8);
 }
 
+// Black is in check and can remove checking pawn with en passant.
 #[test]
 fn perft_pos_2() {
     let mut board = Board::from_fen("8/8/8/2k5/2pP4/8/B7/4K3 b - d3 0 3");
@@ -24,14 +25,16 @@ fn perft_pos_3() {
 
 #[test]
 fn perft_pos_4() {
-    let mut board = Board::from_fen("r3k2r/p1pp1pb1/bn2Qnp1/2qPN3/1p2P3/2N5/PPPBBPPP/R3K2R b KQkq - 3 2");
+    let mut board =
+        Board::from_fen("r3k2r/p1pp1pb1/bn2Qnp1/2qPN3/1p2P3/2N5/PPPBBPPP/R3K2R b KQkq - 3 2");
     let result = common::perft(1, &mut board);
     assert_eq!(result, 5);
 }
 
 #[test]
 fn perft_pos_5() {
-    let mut board = Board::from_fen("2kr3r/p1ppqpb1/bn2Qnp1/3PN3/1p2P3/2N5/PPPBBPPP/R3K2R b KQ - 3 2");
+    let mut board =
+        Board::from_fen("2kr3r/p1ppqpb1/bn2Qnp1/3PN3/1p2P3/2N5/PPPBBPPP/R3K2R b KQ - 3 2");
     let result = common::perft(1, &mut board);
     assert_eq!(result, 44);
 }
@@ -59,7 +62,8 @@ fn perft_pos_8() {
 
 #[test]
 fn perft_pos_9() {
-    let mut board = Board::from_fen("r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10");
+    let mut board =
+        Board::from_fen("r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10");
     let result = common::perft(3, &mut board);
     assert_eq!(result, 89890);
 }

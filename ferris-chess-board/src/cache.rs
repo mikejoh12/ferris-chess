@@ -17,7 +17,12 @@ pub struct CacheBuilder {}
 
 impl CacheBuilder {
     pub fn build(self) -> Cache {
-        Cache { rook_rays: self.get_board_rook_rays(), bishop_rays: self.get_board_bishop_rays(), knight_targets: self.get_board_knight_targets(), neighbor_targets: self.get_board_neighbor_targets()}
+        Cache {
+            rook_rays: self.get_board_rook_rays(),
+            bishop_rays: self.get_board_bishop_rays(),
+            knight_targets: self.get_board_knight_targets(),
+            neighbor_targets: self.get_board_neighbor_targets(),
+        }
     }
 
     fn get_board_rook_rays(&self) -> Vec<Vec<Vec<usize>>> {
