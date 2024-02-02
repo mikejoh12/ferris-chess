@@ -53,7 +53,6 @@ fn perft_n_5() {
     assert_eq!(result, 4865609);
 }
 
-// Pre optimization perft n 6 = 89.83s cargo test --release
 #[ignore]
 #[test]
 fn perft_n_6() {

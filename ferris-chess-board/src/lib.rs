@@ -308,9 +308,9 @@ impl Board {
         }
 
         // Opposite king threat
-        let neighbor_positions = self.get_neighbor_positions(pos);
+        let neighbor_positions = &self.cache.neighbor_targets[pos];
         for neighbor_pos in neighbor_positions {
-            if self.data[neighbor_pos] == Some((opponent_color, Piece::King)) {
+            if self.data[*neighbor_pos] == Some((opponent_color, Piece::King)) {
                 return false;
             }
         }
@@ -1010,48 +1010,22 @@ impl Board {
         new_moves
     }
 
-    fn get_neighbor_positions(&self, pos: usize) -> Vec<usize> {
-        let mut new_positions: Vec<usize> = vec![];
-        let rank_idx = pos / 8;
-        let file_idx = pos % 8;
-
-        let offsets: [[isize; 2]; 8] = [
-            [1, -1],
-            [1, 0],
-            [1, 1],
-            [0, -1],
-            [0, 1],
-            [-1, -1],
-            [-1, 0],
-            [-1, 1],
-        ];
-        for [rank_offset, file_offset] in offsets {
-            let new_rank = rank_idx as isize + rank_offset;
-            let new_file = file_idx as isize + file_offset;
-            if new_rank >= 0 && new_rank < 8 && new_file >= 0 && new_file < 8 {
-                let new_pos = new_rank as usize * 8 + new_file as usize;
-                new_positions.push(new_pos);
-            }
-        }
-        new_positions
-    }
-
     fn get_king_moves(&self, pos: usize) -> Vec<MoveData> {
         let mut new_positions: Vec<MoveData> = vec![];
-        let neighbor_positions = self.get_neighbor_positions(pos);
+        let neighbor_positions = &self.cache.neighbor_targets[pos];
 
         for neighbor_pos in neighbor_positions {
-            match self.get_occupied_status(neighbor_pos) {
+            match self.get_occupied_status(*neighbor_pos) {
                 OccupiedStatus::OccupiedOwnColor => (),
                 OccupiedStatus::OccupiedOpponentColor => new_positions.push(MoveData {
                     start_pos: pos,
-                    end_pos: neighbor_pos,
+                    end_pos: *neighbor_pos,
                     piece: Piece::King,
-                    move_type: MoveType::Regular(Capture(Some(self.data[neighbor_pos].unwrap().1))),
+                    move_type: MoveType::Regular(Capture(Some(self.data[*neighbor_pos].unwrap().1))),
                 }),
                 OccupiedStatus::Unoccupied => new_positions.push(MoveData {
                     start_pos: pos,
-                    end_pos: neighbor_pos,
+                    end_pos: *neighbor_pos,
                     piece: Piece::King,
                     move_type: MoveType::Regular(Capture(None)),
                 }),

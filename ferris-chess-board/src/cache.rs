@@ -1,9 +1,9 @@
 #[derive(Debug, PartialEq, Clone)]
 pub struct Cache {
-    // Lots of complicated fields.
     pub rook_rays: Vec<Vec<Vec<usize>>>,
     pub bishop_rays: Vec<Vec<Vec<usize>>>,
     pub knight_targets: Vec<Vec<usize>>,
+    pub neighbor_targets: Vec<Vec<usize>>,
 }
 
 impl Cache {
@@ -17,7 +17,7 @@ pub struct CacheBuilder {}
 
 impl CacheBuilder {
     pub fn build(self) -> Cache {
-        Cache { rook_rays: self.get_board_rook_rays(), bishop_rays: self.get_board_bishop_rays(), knight_targets: self.get_board_knight_targets()}
+        Cache { rook_rays: self.get_board_rook_rays(), bishop_rays: self.get_board_bishop_rays(), knight_targets: self.get_board_knight_targets(), neighbor_targets: self.get_board_neighbor_targets()}
     }
 
     fn get_board_rook_rays(&self) -> Vec<Vec<Vec<usize>>> {
@@ -155,5 +155,39 @@ impl CacheBuilder {
         }
 
         targets
+    }
+
+    fn get_board_neighbor_targets(&self) -> Vec<Vec<usize>> {
+        let mut neighbors = vec![];
+        for pos in 0..64 {
+            neighbors.push(self.get_neighbor_targets(pos));
+        }
+        neighbors
+    }
+
+    fn get_neighbor_targets(&self, pos: usize) -> Vec<usize> {
+        let mut new_positions: Vec<usize> = vec![];
+        let rank_idx = pos / 8;
+        let file_idx = pos % 8;
+
+        let offsets: [[isize; 2]; 8] = [
+            [1, -1],
+            [1, 0],
+            [1, 1],
+            [0, -1],
+            [0, 1],
+            [-1, -1],
+            [-1, 0],
+            [-1, 1],
+        ];
+        for [rank_offset, file_offset] in offsets {
+            let new_rank = rank_idx as isize + rank_offset;
+            let new_file = file_idx as isize + file_offset;
+            if new_rank >= 0 && new_rank < 8 && new_file >= 0 && new_file < 8 {
+                let new_pos = new_rank as usize * 8 + new_file as usize;
+                new_positions.push(new_pos);
+            }
+        }
+        new_positions
     }
 }
