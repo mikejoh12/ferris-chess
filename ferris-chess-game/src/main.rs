@@ -2,16 +2,17 @@ use ferris_chess_board::{self, Capture, MoveType, Piece};
 
 fn main() {
     let mut board = ferris_chess_board::Board::from_fen(
-        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "5k2/8/8/8/8/8/8/4K2R w K - 0 1",
     );
     board.print();
 
-    let mut valid_moves = board.get_valid_moves();
+    let valid_moves = board.get_valid_moves();
 
     board.print_moves(&valid_moves);
 
     println!("Game status: {:?}\n", board.game_status);
 
+    /*
     // Opening move f2f3 (long "uci" notation) - f pawn forward 1 square
     board.make_move(&ferris_chess_board::MoveData {
         start_pos: 13,
@@ -64,4 +65,6 @@ fn main() {
     println!("Is white to move: {}", board.is_white_to_move);
     board.print_moves(&valid_moves);
     println!("Game status: {:?}\n", board.game_status);
+
+    */
 }

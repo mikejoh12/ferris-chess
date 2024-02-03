@@ -121,8 +121,16 @@ impl Board {
                     idx += 1;
                 }
             }
-            idx = idx.saturating_sub(16);
+            if idx % 8 != 0 {
+                panic!("Rank did not contain 8 squares when parsing FEN")
+            }
+
+            // Only move down when above the first rank
+            if idx > 8 {
+                idx = idx.saturating_sub(16);
+            }
         }
+        println!("Finish parse index {}", idx);
 
         let side_to_move = sections.next().expect("Invalid FEN string - side to move");
         let is_white_to_move = match side_to_move {
