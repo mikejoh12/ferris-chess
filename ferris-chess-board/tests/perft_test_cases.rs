@@ -103,6 +103,79 @@ fn perft_pos_14() {
     let result = common::perft(6, &mut board);
     assert_eq!(result, 803711);
 }
+
+#[ignore]
+#[test]
+fn perft_pos_15() {
+    let mut board = Board::from_fen("r3k2r/1b4bq/8/8/8/8/7B/R3K2R w KQkq - 0 1");
+    let result = common::perft(4, &mut board);
+    assert_eq!(result, 1274206);
+}
+
+#[ignore]
+#[test]
+fn perft_pos_16() {
+    let mut board = Board::from_fen("r3k2r/8/3Q4/8/8/5q2/8/R3K2R b KQkq - 0 1");
+    let result = common::perft(4, &mut board);
+    assert_eq!(result, 1720476);
+}
+
+#[ignore]
+#[test]
+fn perft_pos_17() {
+    let mut board = Board::from_fen("2K2r2/4P3/8/8/8/8/8/3k4 w - - 0 1");
+    let result = common::perft(6, &mut board);
+    assert_eq!(result, 3821001);
+}
+
+#[ignore]
+#[test]
+fn perft_pos_18() {
+    let mut board = Board::from_fen("8/8/1P2K3/8/2n5/1q6/8/5k2 b - - 0 1");
+    let result = common::perft(5, &mut board);
+    assert_eq!(result, 1004658);
+}
+
+#[ignore]
+#[test]
+fn perft_pos_19() {
+    let mut board = Board::from_fen("4k3/1P6/8/8/8/8/K7/8 w - - 0 1");
+    let result = common::perft(6, &mut board);
+    assert_eq!(result, 217342);
+}
+
+#[ignore]
+#[test]
+fn perft_pos_20() {
+    let mut board = Board::from_fen("8/P1k5/K7/8/8/8/8/8 w - - 0 1");
+    let result = common::perft(6, &mut board);
+    assert_eq!(result, 92683);
+}
+
+#[ignore]
+#[test]
+fn perft_pos_21() {
+    let mut board = Board::from_fen("K1k5/8/P7/8/8/8/8/8 w - - 0 1");
+    let result = common::perft(6, &mut board);
+    assert_eq!(result, 2217);
+}
+
+#[ignore]
+#[test]
+fn perft_pos_22() {
+    let mut board = Board::from_fen("8/k1P5/8/1K6/8/8/8/8 w - - 0 1");
+    let result = common::perft(7, &mut board);
+    assert_eq!(result, 567584);
+}
+
+#[ignore]
+#[test]
+fn perft_pos_23() {
+    let mut board = Board::from_fen("8/8/2k5/5q2/5n2/8/5K2/8 b - - 0 1");
+    let result = common::perft(4, &mut board);
+    assert_eq!(result, 23527);
+}
+
 /*
 [
    {
