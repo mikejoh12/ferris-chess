@@ -53,6 +53,9 @@ fn perft_pos_7() {
     assert_eq!(result, 9);
 }
 
+// Failing 6 tests up to test 14 - 8, 10, 11, 13, 14
+// Failing with more move combination or king gone
+// Check issue with pinned piece
 #[test]
 fn perft_pos_8() {
     let mut board = Board::from_fen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8");

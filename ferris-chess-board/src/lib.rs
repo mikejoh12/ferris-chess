@@ -240,7 +240,7 @@ impl Board {
         for m in moves {
             let from = self.get_square_from_idx(m.start_pos);
             let to = self.get_square_from_idx(m.end_pos);
-            print!("{}{} ({:?}) ", from, to, m.piece);
+            print!("{}{} ({:?}, {:?}) ", from, to, m.piece, m.move_type);
         }
         println!("\n");
     }
@@ -457,6 +457,8 @@ impl Board {
                     self.half_moves = 0;
                 }
             };
+        } else {
+            panic!("Attempting to make move from square with no piece");
         }
         if !self.is_white_to_move {
             self.full_moves += 1;
@@ -794,7 +796,7 @@ impl Board {
 
     fn get_black_pawn_moves(&self, pos: usize) -> Vec<MoveData> {
         let mut moves: Vec<MoveData> = vec![];
-        if pos >= 8 && self.is_unoccupied(pos - 8) {
+        if pos - 8 >= Square::A2 && self.is_unoccupied(pos - 8) {
             moves.push(MoveData {
                 start_pos: pos,
                 end_pos: pos - 8,
