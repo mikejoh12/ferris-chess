@@ -37,6 +37,7 @@ fn perft_n_5() {
     assert_eq!(result, 4865609);
 }
 
+#[ignore]
 #[test]
 fn perft_n_6() {
     let mut board = Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");

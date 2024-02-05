@@ -1061,7 +1061,7 @@ impl Board {
 
         if self.is_white_to_move {
             if self.castling_w_000 {
-                if [1, 2, 3].iter().all(|s| self.data[*s] == None)
+                if self.data[Square::A1] == Some((Color::White, Piece::Rook)) && [1, 2, 3].iter().all(|s| self.data[*s] == None)
                     && [2, 3, 4].iter().all(|s| !self.is_position_threatened(*s))
                 {
                     moves.push(MoveData {
@@ -1072,7 +1072,7 @@ impl Board {
                     })
                 }
             }
-            if self.castling_w_00 {
+            if self.data[Square::H1] == Some((Color::White, Piece::Rook)) && self.castling_w_00 {
                 if [5, 6].iter().all(|s| self.data[*s] == None)
                     && [4, 5, 6].iter().all(|s| !self.is_position_threatened(*s))
                 {
@@ -1085,7 +1085,7 @@ impl Board {
                 }
             }
         } else {
-            if self.castling_b_000 {
+            if self.data[Square::A8] == Some((Color::Black, Piece::Rook)) && self.castling_b_000 {
                 if [57, 58, 59].iter().all(|s| self.data[*s] == None)
                     && [58, 59, 60]
                         .iter()
@@ -1099,7 +1099,7 @@ impl Board {
                     })
                 }
             }
-            if self.castling_b_00 {
+            if self.data[Square::H8] == Some((Color::Black, Piece::Rook)) && self.castling_b_00 {
                 if [61, 62].iter().all(|s| self.data[*s] == None)
                     && [60, 61, 62]
                         .iter()
