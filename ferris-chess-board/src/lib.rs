@@ -633,7 +633,7 @@ impl Board {
         positions
     }
 
-    fn get_square_from_idx(&self, idx: usize) -> String {
+    pub fn get_square_from_idx(&self, idx: usize) -> String {
         let file_idx = idx % 8;
         let rank = 1 + idx / 8;
         let files: [&str; 8] = ["a", "b", "c", "d", "e", "f", "g", "h"];
@@ -766,7 +766,7 @@ impl Board {
                     });
                 }
             } else if capture_rank_idx == 7 {
-                // Pawn promotion with capture to the left
+                // Pawn promotion with capture to the right
                 if self.get_occupied_status(right_capture_pos)
                     == OccupiedStatus::OccupiedOpponentColor
                 {

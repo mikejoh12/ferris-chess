@@ -1,7 +1,7 @@
 // https://www.chessprogramming.org/Perft_Results
 // Position 2 Perft 1-4
-// Fails at n 4
-// left: 4087679
+// Fails at n 4 for black with too few moves
+// left: 4079339
 // right: 4085603
 
 

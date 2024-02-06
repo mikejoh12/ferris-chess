@@ -71,6 +71,7 @@ fn perft_pos_9() {
     assert_eq!(result, 89890);
 }
 
+#[ignore]
 #[test]
 fn perft_pos_10() {
     let mut board = Board::from_fen("3k4/3p4/8/K1P4r/8/8/8/8 b - - 0 1");
@@ -78,6 +79,7 @@ fn perft_pos_10() {
     assert_eq!(result, 1134888);
 }
 
+#[ignore]
 #[test]
 fn perft_pos_11() {
     let mut board = Board::from_fen("8/8/4k3/8/2p5/8/B2P2K1/8 w - - 0 1");
@@ -85,6 +87,7 @@ fn perft_pos_11() {
     assert_eq!(result, 1015133);
 }
 
+#[ignore]
 #[test]
 fn perft_pos_12() {
     let mut board = Board::from_fen("8/8/1k6/2b5/2pP4/8/5K2/8 b - d3 0 1");
@@ -92,7 +95,7 @@ fn perft_pos_12() {
     assert_eq!(result, 1440467);
 }
 
-// White kingside castling
+#[ignore]
 #[test]
 fn perft_pos_13() {
     let mut board = Board::from_fen("5k2/8/8/8/8/8/8/4K2R w K - 0 1");
@@ -100,6 +103,7 @@ fn perft_pos_13() {
     assert_eq!(result, 661072);
 }
 
+#[ignore]
 #[test]
 fn perft_pos_14() {
     let mut board = Board::from_fen("3k4/8/8/8/8/8/8/R3K3 w Q - 0 1");

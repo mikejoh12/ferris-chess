@@ -1,5 +1,6 @@
 // https://www.chessprogramming.org/Perft_Results
-// Works: Position 3 Perft 1-6
+// Passes: Position 3 Perft 1-6
+// Fails at n 7 (white) with too many positions
 
 use ferris_chess_board::*;
 mod common;

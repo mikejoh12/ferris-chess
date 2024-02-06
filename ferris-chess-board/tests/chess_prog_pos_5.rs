@@ -1,5 +1,6 @@
 // https://www.chessprogramming.org/Perft_Results
 // Position 5
+// Tested n 1-5. Passes.
 
 use ferris_chess_board::*;
 mod common;
