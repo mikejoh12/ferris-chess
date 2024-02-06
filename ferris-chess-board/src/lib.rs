@@ -73,10 +73,10 @@ pub struct Board {
     pub game_status: GameStatus,
     pub is_white_to_move: bool,
     pub data: [Option<(Color, Piece)>; 64],
-    castling_w_00: bool,
-    castling_w_000: bool,
-    castling_b_00: bool,
-    castling_b_000: bool,
+    pub castling_w_00: bool,
+    pub castling_w_000: bool,
+    pub castling_b_00: bool,
+    pub castling_b_000: bool,
     pub ep_target: Option<usize>,
     pub half_moves: usize,
     pub full_moves: usize,
@@ -523,7 +523,7 @@ impl Board {
             // Restore the "irreversible" board state
             self.castling_w_00 = s.castling_w_00;
             self.castling_w_000 = s.castling_w_000;
-            self.castling_b_00 = s.castling_b_000;
+            self.castling_b_00 = s.castling_b_00;
             self.castling_b_000 = s.castling_b_000;
             self.ep_target = s.ep_target;
             self.half_moves = s.half_moves;
