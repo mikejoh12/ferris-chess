@@ -80,6 +80,8 @@ pub struct Board {
     pub ep_target: Option<usize>,
     pub half_moves: usize,
     pub full_moves: usize,
+    king_pos_w: Option<usize>,
+    king_pos_b: Option<usize>,
     irreversible_board_state_stack: Vec<IrreversibleBoardState>,
 }
 
@@ -95,6 +97,9 @@ impl Board {
         let pieces = sections
             .next()
             .expect("Invalid FEN string - piece positioning");
+
+        let mut king_pos_w: Option<usize> = None;
+        let mut king_pos_b: Option<usize> = None;
 
         let mut idx: usize = 56;
         for row in pieces.split("/") {
@@ -118,6 +123,13 @@ impl Board {
                         _ => panic!("FEN string invalid"),
                     };
                     data[idx] = Some(piece);
+
+                    if piece == (Color::White, Piece::King) {
+                        king_pos_w = Some(idx);
+                    } else if piece == (Color::Black, Piece::King) {
+                        king_pos_b = Some(idx);
+                    }
+
                     idx += 1;
                 }
             }
@@ -192,6 +204,8 @@ impl Board {
             ep_target,
             half_moves,
             full_moves,
+            king_pos_w,
+            king_pos_b,
             game_status: GameStatus::Ongoing,
             irreversible_board_state_stack: vec![],
         }
@@ -392,6 +406,13 @@ impl Board {
                     } else {
                         self.half_moves += 1;
                     }
+
+                    // Update king pos
+                    if piece == (Color::White, Piece::King) {
+                        self.king_pos_w = Some(instr.end_pos);
+                    } else if piece == (Color::Black, Piece::King) {
+                        self.king_pos_b = Some(instr.end_pos);
+                    }
                 }
                 MoveType::Castling => {
                     self.data[instr.end_pos] = Some(piece);
@@ -404,18 +425,22 @@ impl Board {
                         Square::C1 => {
                             self.data[Square::D1] = Some((Color::White, Piece::Rook));
                             self.data[Square::A1] = None;
+                            self.king_pos_w = Some(Square::C1);
                         }
                         Square::G1 => {
                             self.data[Square::F1] = Some((Color::White, Piece::Rook));
                             self.data[Square::H1] = None;
+                            self.king_pos_w = Some(Square::G1);
                         }
                         Square::C8 => {
                             self.data[Square::D8] = Some((Color::Black, Piece::Rook));
                             self.data[Square::A8] = None;
+                            self.king_pos_b = Some(Square::C8);
                         }
                         Square::G8 => {
                             self.data[Square::F8] = Some((Color::Black, Piece::Rook));
                             self.data[Square::H8] = None;
+                            self.king_pos_b = Some(Square::G8);
                         }
                         _ => panic!("Invalid castling destination square"),
                     }
@@ -541,6 +566,13 @@ impl Board {
                     } else {
                         self.data[last_move.end_pos] = None;
                     }
+
+                    // Update king pos
+                    if last_move.piece == Piece::King && self.is_white_to_move {
+                        self.king_pos_w = Some(last_move.start_pos);
+                    } else if last_move.piece == Piece::King && !self.is_white_to_move {
+                        self.king_pos_b = Some(last_move.start_pos);
+                    }
                 }
                 MoveType::Castling => match (last_move.start_pos, last_move.end_pos) {
                     (Square::E1, Square::C1) => {
@@ -548,24 +580,28 @@ impl Board {
                         self.data[Square::E1] = Some((Color::White, Piece::King));
                         self.data[Square::C1] = None;
                         self.data[Square::D1] = None;
+                        self.king_pos_w = Some(Square::E1);
                     }
                     (Square::E1, Square::G1) => {
                         self.data[Square::H1] = Some((Color::White, Piece::Rook));
                         self.data[Square::E1] = Some((Color::White, Piece::King));
                         self.data[Square::F1] = None;
                         self.data[Square::G1] = None;
+                        self.king_pos_w = Some(Square::E1);
                     }
                     (Square::E8, Square::C8) => {
                         self.data[Square::A8] = Some((Color::Black, Piece::Rook));
                         self.data[Square::E8] = Some((Color::Black, Piece::King));
                         self.data[Square::C8] = None;
                         self.data[Square::D8] = None;
+                        self.king_pos_b = Some(Square::E8);
                     }
                     (Square::E8, Square::G8) => {
                         self.data[Square::H8] = Some((Color::Black, Piece::Rook));
                         self.data[Square::E8] = Some((Color::Black, Piece::King));
                         self.data[Square::F8] = None;
                         self.data[Square::G8] = None;
+                        self.king_pos_b = Some(Square::E8);
                     }
                     _ => panic!("Attempt to reverse invalid castling"),
                 },
@@ -1041,6 +1077,7 @@ impl Board {
         new_positions
     }
 
+    /*
     fn get_king_pos(&self) -> usize {
         let target_color = match self.is_white_to_move {
             true => Color::White,
@@ -1055,13 +1092,15 @@ impl Board {
             None => panic!("A valid board should always have 2 kings"),
         }
     }
+    */
 
     fn get_castling_moves(&self) -> Vec<MoveData> {
         let mut moves: Vec<MoveData> = vec![];
 
         if self.is_white_to_move {
             if self.castling_w_000 {
-                if self.data[Square::A1] == Some((Color::White, Piece::Rook)) && [1, 2, 3].iter().all(|s| self.data[*s] == None)
+                if self.data[Square::A1] == Some((Color::White, Piece::Rook))
+                    && [1, 2, 3].iter().all(|s| self.data[*s] == None)
                     && [2, 3, 4].iter().all(|s| !self.is_position_threatened(*s))
                 {
                     moves.push(MoveData {
@@ -1123,29 +1162,51 @@ impl Board {
         self.data[move_data.end_pos] = self.data[move_data.start_pos];
         self.data[move_data.start_pos] = None;
 
-        if move_data.move_type == MoveType::EnPassant {
-            if self.is_white_to_move {
-                self.data[move_data.end_pos - 8] = None;
-            } else {
-                self.data[move_data.end_pos + 8] = None;
-            }
-
-            let is_legal = !self.is_position_threatened(self.get_king_pos());
-            self.data[move_data.start_pos] = self.data[move_data.end_pos];
-            self.data[move_data.end_pos] = temp;
-
-            if self.is_white_to_move {
-                self.data[move_data.end_pos - 8] = Some((Color::Black, Piece::Pawn));
-            } else {
-                self.data[move_data.end_pos + 8] = Some((Color::White, Piece::Pawn));
-            }
-            is_legal
-        } else {
-            let is_legal = !self.is_position_threatened(self.get_king_pos());
-            self.data[move_data.start_pos] = self.data[move_data.end_pos];
-            self.data[move_data.end_pos] = temp;
-            is_legal
+        // Update king position
+        if move_data.piece == Piece::King && self.is_white_to_move {
+            self.king_pos_w = Some(move_data.end_pos);
+        } else if move_data.piece == Piece::King && !self.is_white_to_move {
+            self.king_pos_b = Some(move_data.end_pos);
         }
+
+        let king_pos = match self.is_white_to_move {
+            true => self.king_pos_w,
+            false => self.king_pos_b,
+        }
+        .expect("King is not found on board");
+
+        let is_legal = match move_data.move_type == MoveType::EnPassant {
+            true => {
+                if self.is_white_to_move {
+                    self.data[move_data.end_pos - 8] = None;
+                } else {
+                    self.data[move_data.end_pos + 8] = None;
+                }
+
+                let is_legal_with_ep = !self.is_position_threatened(king_pos);
+
+
+                if self.is_white_to_move {
+                    self.data[move_data.end_pos - 8] = Some((Color::Black, Piece::Pawn));
+                } else {
+                    self.data[move_data.end_pos + 8] = Some((Color::White, Piece::Pawn));
+                }
+                is_legal_with_ep
+            }
+            false => !self.is_position_threatened(king_pos),
+        };
+
+        // Restore king position
+        if move_data.piece == Piece::King && self.is_white_to_move {
+            self.king_pos_w = Some(move_data.start_pos);
+        } else if move_data.piece == Piece::King && !self.is_white_to_move {
+            self.king_pos_b = Some(move_data.start_pos);
+        }
+
+        self.data[move_data.start_pos] = self.data[move_data.end_pos];
+        self.data[move_data.end_pos] = temp;
+
+        is_legal
     }
 
     pub fn get_valid_moves(&mut self) -> Vec<MoveData> {
@@ -1183,7 +1244,12 @@ impl Board {
     }
 
     fn update_game_status(&mut self) {
-        let king_pos = self.get_king_pos();
+        let king_pos = match self.is_white_to_move {
+            true => self.king_pos_w,
+            false => self.king_pos_b,
+        }
+        .expect("King position missing on board");
+
         let is_mated = self.is_position_threatened(king_pos);
         self.game_status = match (is_mated, self.is_white_to_move) {
             (true, true) => GameStatus::BlackWin,
