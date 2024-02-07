@@ -319,7 +319,7 @@ impl Board {
         let neighbor_positions = &self.cache.neighbor_targets[pos];
         for neighbor_pos in neighbor_positions {
             if self.data[*neighbor_pos] == Some((opponent_color, Piece::King)) {
-                return false;
+                return true;
             }
         }
 

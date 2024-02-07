@@ -1,10 +1,11 @@
 // https://www.chessprogramming.org/Perft_Results
-// Passes: Position 3 Perft 1-6
-// Fails at n 7 (white) with too many positions
+// Passes: Position 3 Perft 1-7
 
 use ferris_chess_board::*;
 mod common;
 use common::perft;
+
+use crate::common::divide;
 
 #[test]
 fn perft_n_1() {
@@ -48,10 +49,9 @@ fn perft_n_6() {
     assert_eq!(result, 11030083);
 }
 
-#[ignore]
 #[test]
 fn perft_n_7() {
     let mut board = Board::from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1");
-    let result = perft(7, &mut board);
+    let result = divide(7, &mut board);
     assert_eq!(result, 178633661);
 }
