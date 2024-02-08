@@ -1,6 +1,5 @@
 use ferris_chess_board::*;
-mod common;
-use common::perft;
+use ferris_chess_board::perft::*;
 
 // Current performance
 // n = 1-6 time is 7.74s with cargo test --release

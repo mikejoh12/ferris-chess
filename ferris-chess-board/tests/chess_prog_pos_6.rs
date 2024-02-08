@@ -3,8 +3,7 @@
 // Tested n 1-5. Passes
 
 use ferris_chess_board::*;
-mod common;
-use common::perft;
+use ferris_chess_board::perft::*;
 
 #[test]
 fn perft_n_1() {

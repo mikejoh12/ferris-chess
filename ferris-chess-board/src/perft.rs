@@ -1,4 +1,4 @@
-use ferris_chess_board::*;
+use crate::Board;
 
 pub fn perft(depth: u8, board: &mut Board) -> usize {
     let moves = board.get_valid_moves();

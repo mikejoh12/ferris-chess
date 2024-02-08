@@ -3,6 +3,7 @@ use std::{collections::HashSet, vec};
 
 mod cache;
 mod squares;
+pub mod perft;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Color {
@@ -153,7 +154,6 @@ impl Board {
                 idx = idx.saturating_sub(16);
             }
         }
-        println!("Finish parse index {}", idx);
 
         let side_to_move = sections.next().expect("Invalid FEN string - side to move");
         let is_white_to_move = match side_to_move {

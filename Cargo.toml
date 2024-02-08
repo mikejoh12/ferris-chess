@@ -1,7 +1,7 @@
 [workspace]
 
 members = [
-    "ferris-chess-game",
+    "ferris-chess-cli",
     "ferris-chess-board",
     "ferris-chess-engine",
 ]
