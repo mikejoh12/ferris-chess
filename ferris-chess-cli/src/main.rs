@@ -32,7 +32,7 @@ fn main() {
     match args.mode {
         CliMode::Solo => play_against_self(&mut board),
         CliMode::Perft => perft_results(&mut board),
-        CliMode::Uci => start_uci(&board),
+        CliMode::Uci => todo!(),
         CliMode::Debug => debug_board(&mut board)}
 }
 
@@ -52,16 +52,16 @@ fn play_against_self(board: &mut Board) {
 }
 
 fn perft_results(board: &mut Board) {
-    todo!()
-}
-
-fn start_uci(board: &Board) {
-    todo!();
+    let depth = 6;
+    println!("Checking perft for n = {}", depth);
+    let timing = Instant::now();
+    let result = perft(depth, board);
+    let elapsed = timing.elapsed();
+    println!("Result: {} Time: {:?} Nodes / second: {}", result, elapsed, (result as f64 / elapsed.as_secs_f64()) as usize);
 }
 
 fn debug_board(board: &mut Board) {
-    let depth = 6;
-    let timing = Instant::now();
-    let result = perft(depth, board);
-    println!("Perft result for n = {}: {} Time: {:?}", depth, result, timing.elapsed());
+    board.print();
+    let moves = board.get_valid_moves();
+    println!("Moves: {:?}", moves);
 }
