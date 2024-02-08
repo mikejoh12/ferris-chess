@@ -1,5 +1,5 @@
 pub use squares::Square;
-use std::vec;
+use std::{collections::HashSet, vec};
 
 mod cache;
 mod squares;
@@ -82,6 +82,8 @@ pub struct Board {
     pub full_moves: usize,
     king_pos_w: Option<usize>,
     king_pos_b: Option<usize>,
+    pieces_w: HashSet<usize>,
+    pieces_b: HashSet<usize>,
     irreversible_board_state_stack: Vec<IrreversibleBoardState>,
 }
 
@@ -100,6 +102,9 @@ impl Board {
 
         let mut king_pos_w: Option<usize> = None;
         let mut king_pos_b: Option<usize> = None;
+
+        let mut pieces_w: HashSet<usize> = HashSet::new();
+        let mut pieces_b: HashSet<usize> = HashSet::new();
 
         let mut idx: usize = 56;
         for row in pieces.split("/") {
@@ -123,6 +128,12 @@ impl Board {
                         _ => panic!("FEN string invalid"),
                     };
                     data[idx] = Some(piece);
+
+                    if piece.0 == Color::White {
+                        pieces_w.insert(idx);
+                    } else {
+                        pieces_b.insert(idx);
+                    }
 
                     if piece == (Color::White, Piece::King) {
                         king_pos_w = Some(idx);
@@ -206,6 +217,8 @@ impl Board {
             full_moves,
             king_pos_w,
             king_pos_b,
+            pieces_w,
+            pieces_b,
             game_status: GameStatus::Ongoing,
             irreversible_board_state_stack: vec![],
         }
@@ -399,6 +412,8 @@ impl Board {
                     self.data[instr.end_pos] = Some(piece);
                     self.data[instr.start_pos] = None;
 
+                    self.update_pieces(instr.start_pos, instr.end_pos, &cap);
+
                     // Reset half move clock on pawn move or capture
                     // Increment it otherwise
                     if piece.1 == Piece::Pawn || cap != Capture(None) {
@@ -418,6 +433,9 @@ impl Board {
                     self.data[instr.end_pos] = Some(piece);
                     self.data[instr.start_pos] = None;
 
+                    // Update king position in piece list
+                    self.update_pieces(instr.start_pos, instr.end_pos, &Capture(None));
+
                     // Increment half move clock
                     self.half_moves += 1;
 
@@ -426,21 +444,29 @@ impl Board {
                             self.data[Square::D1] = Some((Color::White, Piece::Rook));
                             self.data[Square::A1] = None;
                             self.king_pos_w = Some(Square::C1);
+                            self.pieces_w.insert(Square::D1);
+                            self.pieces_w.remove(&Square::A1);
                         }
                         Square::G1 => {
                             self.data[Square::F1] = Some((Color::White, Piece::Rook));
                             self.data[Square::H1] = None;
                             self.king_pos_w = Some(Square::G1);
+                            self.pieces_w.insert(Square::F1);
+                            self.pieces_w.remove(&Square::H1);
                         }
                         Square::C8 => {
                             self.data[Square::D8] = Some((Color::Black, Piece::Rook));
                             self.data[Square::A8] = None;
                             self.king_pos_b = Some(Square::C8);
+                            self.pieces_b.insert(Square::D8);
+                            self.pieces_b.remove(&Square::A8);
                         }
                         Square::G8 => {
                             self.data[Square::F8] = Some((Color::Black, Piece::Rook));
                             self.data[Square::H8] = None;
                             self.king_pos_b = Some(Square::G8);
+                            self.pieces_b.insert(Square::F8);
+                            self.pieces_b.remove(&Square::H8);
                         }
                         _ => panic!("Invalid castling destination square"),
                     }
@@ -451,35 +477,44 @@ impl Board {
                     self.data[instr.end_pos] = Some(piece);
                     self.data[instr.start_pos] = None;
 
+                    // No capture on the end_pos square during ep
+                    self.update_pieces(instr.start_pos, instr.end_pos, &Capture(None));
+
                     // Handle en passant capture
                     if self.is_white_to_move {
-                        self.data[instr.end_pos - 8] = None
+                        self.data[instr.end_pos - 8] = None;
+                        self.pieces_b.remove(&(instr.end_pos - 8));
                     } else {
-                        self.data[instr.end_pos + 8] = None
+                        self.data[instr.end_pos + 8] = None;
+                        self.pieces_w.remove(&(instr.end_pos + 8));
                     }
                     self.half_moves = 0;
                 }
 
                 // Reset half move clock for the 4 pawn promotions
-                MoveType::QueenPromotion(_) => {
+                MoveType::QueenPromotion(cap) => {
                     self.data[instr.end_pos] = Some((piece.0, Piece::Queen));
                     self.data[instr.start_pos] = None;
                     self.half_moves = 0;
+                    self.update_pieces(instr.start_pos, instr.end_pos, &cap);
                 }
-                MoveType::RookPromotion(_) => {
+                MoveType::RookPromotion(cap) => {
                     self.data[instr.end_pos] = Some((piece.0, Piece::Rook));
                     self.data[instr.start_pos] = None;
                     self.half_moves = 0;
+                    self.update_pieces(instr.start_pos, instr.end_pos, &cap);
                 }
-                MoveType::BishopPromotion(_) => {
+                MoveType::BishopPromotion(cap) => {
                     self.data[instr.end_pos] = Some((piece.0, Piece::Bishop));
                     self.data[instr.start_pos] = None;
                     self.half_moves = 0;
+                    self.update_pieces(instr.start_pos, instr.end_pos, &cap);
                 }
-                MoveType::KnightPromotion(_) => {
+                MoveType::KnightPromotion(cap) => {
                     self.data[instr.end_pos] = Some((piece.0, Piece::Knight));
                     self.data[instr.start_pos] = None;
                     self.half_moves = 0;
+                    self.update_pieces(instr.start_pos, instr.end_pos, &cap);
                 }
             };
         } else {
@@ -529,6 +564,44 @@ impl Board {
         self.is_white_to_move = !self.is_white_to_move;
     }
 
+    fn update_pieces(&mut self, from: usize, to: usize, capture: &Capture) {
+        match self.is_white_to_move {
+            true => {
+                self.pieces_w.insert(to);
+                self.pieces_w.remove(&from);
+                if *capture != Capture(None) {
+                    self.pieces_b.remove(&to);
+                }
+            }
+            false => {
+                self.pieces_b.insert(to);
+                self.pieces_b.remove(&from);
+                if *capture != Capture(None) {
+                    self.pieces_w.remove(&to);
+                }
+            }
+        }
+    }
+
+    fn unmake_update_pieces(&mut self, from: usize, to: usize, capture: &Capture) {
+        match self.is_white_to_move {
+            true => {
+                self.pieces_w.insert(from);
+                self.pieces_w.remove(&to);
+                if *capture != Capture(None) {
+                    self.pieces_b.insert(to);
+                }
+            }
+            false => {
+                self.pieces_b.insert(from);
+                self.pieces_b.remove(&to);
+                if *capture != Capture(None) {
+                    self.pieces_w.insert(to);
+                }
+            }
+        }
+    }
+
     pub fn unmake_move(&mut self, last_move: &MoveData) {
         let irreversible_state = self.irreversible_board_state_stack.pop();
 
@@ -567,6 +640,8 @@ impl Board {
                         self.data[last_move.end_pos] = None;
                     }
 
+                    self.unmake_update_pieces(last_move.start_pos, last_move.end_pos, &cap);
+
                     // Update king pos
                     if last_move.piece == Piece::King && self.is_white_to_move {
                         self.king_pos_w = Some(last_move.start_pos);
@@ -574,59 +649,85 @@ impl Board {
                         self.king_pos_b = Some(last_move.start_pos);
                     }
                 }
-                MoveType::Castling => match (last_move.start_pos, last_move.end_pos) {
-                    (Square::E1, Square::C1) => {
-                        self.data[Square::A1] = Some((Color::White, Piece::Rook));
-                        self.data[Square::E1] = Some((Color::White, Piece::King));
-                        self.data[Square::C1] = None;
-                        self.data[Square::D1] = None;
-                        self.king_pos_w = Some(Square::E1);
+                MoveType::Castling => {
+                    // Undo the king position
+                    self.unmake_update_pieces(
+                        last_move.start_pos,
+                        last_move.end_pos,
+                        &Capture(None),
+                    );
+
+                    match (last_move.start_pos, last_move.end_pos) {
+                        (Square::E1, Square::C1) => {
+                            self.data[Square::A1] = Some((Color::White, Piece::Rook));
+                            self.data[Square::E1] = Some((Color::White, Piece::King));
+                            self.data[Square::C1] = None;
+                            self.data[Square::D1] = None;
+                            self.pieces_w.remove(&Square::D1);
+                            self.pieces_w.insert(Square::A1);
+                            self.king_pos_w = Some(Square::E1);
+                        }
+                        (Square::E1, Square::G1) => {
+                            self.data[Square::H1] = Some((Color::White, Piece::Rook));
+                            self.data[Square::E1] = Some((Color::White, Piece::King));
+                            self.data[Square::F1] = None;
+                            self.data[Square::G1] = None;
+                            self.pieces_w.remove(&Square::F1);
+                            self.pieces_w.insert(Square::H1);
+                            self.king_pos_w = Some(Square::E1);
+                        }
+                        (Square::E8, Square::C8) => {
+                            self.data[Square::A8] = Some((Color::Black, Piece::Rook));
+                            self.data[Square::E8] = Some((Color::Black, Piece::King));
+                            self.data[Square::C8] = None;
+                            self.data[Square::D8] = None;
+                            self.pieces_b.remove(&Square::D8);
+                            self.pieces_b.insert(Square::A8);
+                            self.king_pos_b = Some(Square::E8);
+                        }
+                        (Square::E8, Square::G8) => {
+                            self.data[Square::H8] = Some((Color::Black, Piece::Rook));
+                            self.data[Square::E8] = Some((Color::Black, Piece::King));
+                            self.data[Square::F8] = None;
+                            self.data[Square::G8] = None;
+                            self.pieces_b.remove(&Square::F8);
+                            self.pieces_b.insert(Square::H8);
+                            self.king_pos_b = Some(Square::E8);
+                        }
+                        _ => panic!("Attempt to reverse invalid castling"),
                     }
-                    (Square::E1, Square::G1) => {
-                        self.data[Square::H1] = Some((Color::White, Piece::Rook));
-                        self.data[Square::E1] = Some((Color::White, Piece::King));
-                        self.data[Square::F1] = None;
-                        self.data[Square::G1] = None;
-                        self.king_pos_w = Some(Square::E1);
-                    }
-                    (Square::E8, Square::C8) => {
-                        self.data[Square::A8] = Some((Color::Black, Piece::Rook));
-                        self.data[Square::E8] = Some((Color::Black, Piece::King));
-                        self.data[Square::C8] = None;
-                        self.data[Square::D8] = None;
-                        self.king_pos_b = Some(Square::E8);
-                    }
-                    (Square::E8, Square::G8) => {
-                        self.data[Square::H8] = Some((Color::Black, Piece::Rook));
-                        self.data[Square::E8] = Some((Color::Black, Piece::King));
-                        self.data[Square::F8] = None;
-                        self.data[Square::G8] = None;
-                        self.king_pos_b = Some(Square::E8);
-                    }
-                    _ => panic!("Attempt to reverse invalid castling"),
-                },
+                }
                 MoveType::EnPassant => {
                     self.data[last_move.start_pos] = Some((color_to_move, Piece::Pawn));
                     self.data[last_move.end_pos] = None;
 
+                    // Handle captured ep piece separately since it's in a different square
+                    self.unmake_update_pieces(last_move.start_pos, last_move.end_pos, &Capture(None));
+
                     // Replace en passant captured piece
                     if self.is_white_to_move {
                         self.data[last_move.end_pos - 8] = Some((Color::Black, Piece::Pawn));
+                        self.pieces_b.insert(last_move.end_pos - 8);
                     } else {
                         self.data[last_move.end_pos + 8] = Some((Color::White, Piece::Pawn));
+                        self.pieces_w.insert(last_move.end_pos + 8);
                     }
                 }
                 MoveType::QueenPromotion(cap) => {
                     self.unmake_promotion_move(last_move, &cap);
+                    self.unmake_update_pieces(last_move.start_pos, last_move.end_pos, &cap);
                 }
                 MoveType::RookPromotion(cap) => {
                     self.unmake_promotion_move(last_move, &cap);
+                    self.unmake_update_pieces(last_move.start_pos, last_move.end_pos, &cap);
                 }
                 MoveType::BishopPromotion(cap) => {
                     self.unmake_promotion_move(last_move, &cap);
+                    self.unmake_update_pieces(last_move.start_pos, last_move.end_pos, &cap);
                 }
                 MoveType::KnightPromotion(cap) => {
                     self.unmake_promotion_move(last_move, &cap);
+                    self.unmake_update_pieces(last_move.start_pos, last_move.end_pos, &cap);
                 }
             }
         } else {
@@ -650,23 +751,6 @@ impl Board {
         } else {
             self.data[last_move.end_pos] = None;
         }
-    }
-
-    fn get_potential_move_positions(&self) -> Vec<(usize, Color, Piece)> {
-        let target_color = match self.is_white_to_move {
-            true => Color::White,
-            false => Color::Black,
-        };
-        let mut positions: Vec<(usize, Color, Piece)> = vec![];
-
-        for (idx, pos) in self.data.iter().enumerate() {
-            if let Some(p) = pos {
-                if p.0 == target_color {
-                    positions.push((idx, p.0, p.1));
-                }
-            }
-        }
-        positions
     }
 
     pub fn get_square_from_idx(&self, idx: usize) -> String {
@@ -1077,23 +1161,6 @@ impl Board {
         new_positions
     }
 
-    /*
-    fn get_king_pos(&self) -> usize {
-        let target_color = match self.is_white_to_move {
-            true => Color::White,
-            false => Color::Black,
-        };
-        match self
-            .data
-            .iter()
-            .position(|&p| p == Some((target_color, Piece::King)))
-        {
-            Some(v) => return v,
-            None => panic!("A valid board should always have 2 kings"),
-        }
-    }
-    */
-
     fn get_castling_moves(&self) -> Vec<MoveData> {
         let mut moves: Vec<MoveData> = vec![];
 
@@ -1185,7 +1252,6 @@ impl Board {
 
                 let is_legal_with_ep = !self.is_position_threatened(king_pos);
 
-
                 if self.is_white_to_move {
                     self.data[move_data.end_pos - 8] = Some((Color::Black, Piece::Pawn));
                 } else {
@@ -1211,18 +1277,22 @@ impl Board {
 
     pub fn get_valid_moves(&mut self) -> Vec<MoveData> {
         let mut moves: Vec<MoveData> = vec![];
-        let positions = self.get_potential_move_positions();
+        let positions: &HashSet<usize> = match self.is_white_to_move {
+            true => &self.pieces_w,
+            false => &self.pieces_b,
+        };
 
-        for position in positions {
-            let position_moves: Vec<MoveData> = match (position.1, position.2) {
-                (Color::White, Piece::Pawn) => self.get_white_pawn_moves(position.0),
-                (Color::Black, Piece::Pawn) => self.get_black_pawn_moves(position.0),
-                (_, Piece::Rook) => self.get_rook_moves(position.0),
-                (_, Piece::Knight) => self.get_knight_moves(position.0),
-                (_, Piece::Bishop) => self.get_bishop_moves(position.0),
-                (_, Piece::Queen) => self.get_queen_moves(position.0),
-                (_, Piece::King) => self.get_king_moves(position.0),
+        for pos in positions.clone() {
+            let position_moves: Vec<MoveData> = match (self.data[pos].unwrap().0, self.data[pos].unwrap().1) {
+                (Color::White, Piece::Pawn) => self.get_white_pawn_moves(pos),
+                (Color::Black, Piece::Pawn) => self.get_black_pawn_moves(pos),
+                (_, Piece::Rook) => self.get_rook_moves(pos),
+                (_, Piece::Knight) => self.get_knight_moves(pos),
+                (_, Piece::Bishop) => self.get_bishop_moves(pos),
+                (_, Piece::Queen) => self.get_queen_moves(pos),
+                (_, Piece::King) => self.get_king_moves(pos),
             };
+
             for m in position_moves {
                 if self.is_legal_move(&m) {
                     moves.push(m);

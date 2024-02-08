@@ -3,7 +3,7 @@ mod common;
 use common::perft;
 
 // Current performance
-// n=6 time is 8.02s with cargo test --release
+// n = 1-6 time is 7.74s with cargo test --release
 
 #[test]
 fn perft_n_1() {
