@@ -260,6 +260,7 @@ impl Board {
             "Halfmove Clock: {} Fullmove counter: {}",
             self.half_moves, self.full_moves
         );
+        println!("Game Status: {:?}", self.game_status);
     }
 
     pub fn print_moves(&self, moves: &Vec<MoveData>) {
