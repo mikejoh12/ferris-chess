@@ -1,8 +1,8 @@
 // https://www.chessprogramming.org/Perft_Results
 // Position 5
 
-use ferris_chess_board::*;
 use ferris_chess_board::perft::*;
+use ferris_chess_board::*;
 
 #[test]
 fn perft_n_1() {

@@ -2,8 +2,8 @@
 // Position 6
 // Tested n 1-5. Passes
 
-use ferris_chess_board::*;
 use ferris_chess_board::perft::*;
+use ferris_chess_board::*;
 
 #[test]
 fn perft_n_1() {

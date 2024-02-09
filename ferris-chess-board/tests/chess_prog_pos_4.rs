@@ -1,8 +1,8 @@
 // https://www.chessprogramming.org/Perft_Results
 // Position 4 Perft. Tests successful for n 1-5
 
-use ferris_chess_board::*;
 use ferris_chess_board::perft::*;
+use ferris_chess_board::*;
 
 static POS_4: &str = "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1";
 

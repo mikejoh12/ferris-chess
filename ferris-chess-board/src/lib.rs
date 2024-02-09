@@ -2,8 +2,8 @@ pub use squares::Square;
 use std::{collections::HashSet, vec};
 
 mod cache;
-mod squares;
 pub mod perft;
+mod squares;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Color {
@@ -703,7 +703,11 @@ impl Board {
                     self.data[last_move.end_pos] = None;
 
                     // Handle captured ep piece separately since it's in a different square
-                    self.unmake_update_pieces(last_move.start_pos, last_move.end_pos, &Capture(None));
+                    self.unmake_update_pieces(
+                        last_move.start_pos,
+                        last_move.end_pos,
+                        &Capture(None),
+                    );
 
                     // Replace en passant captured piece
                     if self.is_white_to_move {
@@ -1284,15 +1288,16 @@ impl Board {
         };
 
         for pos in positions.clone() {
-            let position_moves: Vec<MoveData> = match (self.data[pos].unwrap().0, self.data[pos].unwrap().1) {
-                (Color::White, Piece::Pawn) => self.get_white_pawn_moves(pos),
-                (Color::Black, Piece::Pawn) => self.get_black_pawn_moves(pos),
-                (_, Piece::Rook) => self.get_rook_moves(pos),
-                (_, Piece::Knight) => self.get_knight_moves(pos),
-                (_, Piece::Bishop) => self.get_bishop_moves(pos),
-                (_, Piece::Queen) => self.get_queen_moves(pos),
-                (_, Piece::King) => self.get_king_moves(pos),
-            };
+            let position_moves: Vec<MoveData> =
+                match (self.data[pos].unwrap().0, self.data[pos].unwrap().1) {
+                    (Color::White, Piece::Pawn) => self.get_white_pawn_moves(pos),
+                    (Color::Black, Piece::Pawn) => self.get_black_pawn_moves(pos),
+                    (_, Piece::Rook) => self.get_rook_moves(pos),
+                    (_, Piece::Knight) => self.get_knight_moves(pos),
+                    (_, Piece::Bishop) => self.get_bishop_moves(pos),
+                    (_, Piece::Queen) => self.get_queen_moves(pos),
+                    (_, Piece::King) => self.get_king_moves(pos),
+                };
 
             for m in position_moves {
                 if self.is_legal_move(&m) {
