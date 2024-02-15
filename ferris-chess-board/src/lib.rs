@@ -96,40 +96,30 @@ impl MoveData {
         let piece = board.data[start_pos].unwrap().1;
 
         let move_type: MoveType = match piece {
-
             Piece::Pawn => 'pawns: {
                 let cap = match board.data[end_pos] {
                     Some(p) => Capture(Some(p.1)),
                     None => Capture(None),
                 };
 
-
                 if uci_move.len() == 5 {
                     match &uci_move[4..5] {
-                        "q" => {
-                            break 'pawns MoveType::QueenPromotion(cap)
-                        },
-                        "r" => {
-                            break 'pawns MoveType::RookPromotion(cap)
-                        },
-                        "b" => {
-                            break 'pawns MoveType::BishopPromotion(cap)
-                        },
-                        "n" => {
-                            break 'pawns MoveType::KnightPromotion(cap)
-                        },
-                        _ => panic!("UCI move string invalid for promotion move")
+                        "q" => break 'pawns MoveType::QueenPromotion(cap),
+                        "r" => break 'pawns MoveType::RookPromotion(cap),
+                        "b" => break 'pawns MoveType::BishopPromotion(cap),
+                        "n" => break 'pawns MoveType::KnightPromotion(cap),
+                        _ => panic!("UCI move string invalid for promotion move"),
                     }
                 }
 
                 if let Some(ep) = board.ep_target {
                     if ep == end_pos {
-                        break 'pawns MoveType::EnPassant
+                        break 'pawns MoveType::EnPassant;
                     }
                 };
 
                 MoveType::Regular(cap)
-            },
+            }
 
             Piece::Rook | Piece::Knight | Piece::Bishop | Piece::Queen => {
                 if let Some(c) = board.data[end_pos] {
@@ -162,6 +152,21 @@ impl MoveData {
         }
     }
 
+    pub fn to_uci_move(&self, board: &Board) -> String {
+        let mut uci_move = format!(
+            "{}{}",
+            board.get_square_from_idx(self.start_pos),
+            board.get_square_from_idx(self.end_pos)
+        );
+        match self.move_type {
+            MoveType::QueenPromotion(_) => uci_move.push('q'),
+            MoveType::RookPromotion(_) => uci_move.push('r'),
+            MoveType::BishopPromotion(_) => uci_move.push('b'),
+            MoveType::KnightPromotion(_) => uci_move.push('n'),
+            _ => (),
+        }
+        uci_move
+    }
 }
 
 impl Board {
@@ -354,10 +359,7 @@ impl Board {
         let rank = &uci_pos[1..2];
 
         let files: [&str; 8] = ["a", "b", "c", "d", "e", "f", "g", "h"];
-        let file_idx: usize = files
-            .iter()
-            .position(|&f| f == file)
-            .unwrap();
+        let file_idx: usize = files.iter().position(|&f| f == file).unwrap();
         let rank_idx: usize = (rank.parse::<isize>().unwrap() - 1) as usize;
         rank_idx * 8 + file_idx
     }

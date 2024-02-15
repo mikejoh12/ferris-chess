@@ -97,7 +97,6 @@ impl Uci {
         self.board = Some(Board::from_fen(pos));
 
         if let Some(board) = &mut self.board {
-
             if cmd_parts.len() > 3 && cmd_parts[2] == "moves" {
                 for i in 3..cmd_parts.len() {
                     let m = MoveData::from_uci(&cmd_parts[i], board);
@@ -132,11 +131,7 @@ impl Uci {
 
                 let num = rand::thread_rng().gen_range(0..moves.len());
                 let m = &moves[num];
-                let uci_move = format!(
-                    "{}{}",
-                    board.get_square_from_idx(m.start_pos),
-                    board.get_square_from_idx(m.end_pos)
-                );
+                let uci_move = m.to_uci_move(board);
                 println!("bestmove {}", uci_move);
             }
             None => panic!("Got go command without board initialized"),
