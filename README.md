@@ -7,11 +7,13 @@ To start the project in it's current very early stage, make sure a recent versio
 cargo run -- -h
 ```
 Modes available:
-  solo   Engine will play against itself
-  perft  Runs perft performance test to a given depth
-  uci    Start the engine in UCI mode (default)
-  debug  Used during development for debugging
-  help   Print this message or the help of the given subcommand(s)
+```
+solo   Engine will play against itself
+perft  Runs perft performance test to a given depth
+uci    Start the engine in UCI mode (default)
+debug  Used during development for debugging
+help   Print this message or the help of the given subcommand(s)
+```
 
 The default start mode is UCI which is to be used with a chess GUI such as Cutechess.
 
