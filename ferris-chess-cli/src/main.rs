@@ -1,3 +1,6 @@
+pub mod uci;
+use crate::uci::Uci;
+
 use std::{process, time::Instant};
 
 use clap::{Parser, Subcommand};
@@ -5,7 +8,7 @@ use ferris_chess_board::{self, perft::perft, Board, GameStatus};
 use rand::Rng;
 
 #[derive(Subcommand, Debug)]
-enum Action {
+enum Command {
     /// Engine will play against itself
     Solo,
     /// Runs perft performance test to a given depth
@@ -13,7 +16,7 @@ enum Action {
         /// The depth for perft
         depth: u8,
     },
-    /// Start the engine in Universal Chess Interface (UCI) mode
+    /// Start the engine in UCI mode (default)
     Uci,
     /// Used during development for debugging
     Debug,
@@ -24,7 +27,7 @@ enum Action {
 #[command(author, version, about, long_about = None)]
 struct Args {
     #[command(subcommand)]
-    action: Action,
+    command: Option<Command>,
 
     /// FEN position for the chess board (default is the regular starting position)
     #[arg(
@@ -39,18 +42,24 @@ fn main() {
     let args = Args::parse();
     let mut board = ferris_chess_board::Board::from_fen(&args.fen);
 
-    match args.action {
-        Action::Solo => play_against_self(&mut board),
-        Action::Perft  { depth } => {
-            if depth == 0 ||depth > 10 {
+    match args.command {
+        Some(Command::Solo) => play_against_self(&mut board),
+        Some(Command::Perft { depth }) => {
+            if depth == 0 || depth > 10 {
                 eprintln!("Error: perft depth needs to be between 1-10");
                 process::exit(1);
             }
             perft_results(&mut board, depth);
-        },
-        Action::Uci => todo!(),
-        Action::Debug => debug_board(&mut board),
+        }
+        Some(Command::Uci) => handle_uci(&mut board),
+        Some(Command::Debug) => debug_board(&mut board),
+        None => handle_uci(&mut board),
     }
+}
+
+fn handle_uci(board: &mut Board) {
+    let mut uci = Uci::new();
+    uci.start_read_stdin_loop(board);
 }
 
 fn play_against_self(board: &mut Board) {

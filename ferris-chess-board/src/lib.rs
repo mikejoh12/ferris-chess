@@ -88,6 +88,82 @@ pub struct Board {
     irreversible_board_state_stack: Vec<IrreversibleBoardState>,
 }
 
+impl MoveData {
+    pub fn from_uci(uci_move: &String, board: &Board) -> Self {
+        let start_pos = board.get_idx_from_square(&uci_move[0..2]);
+        let end_pos = board.get_idx_from_square(&uci_move[2..4]);
+
+        let piece = board.data[start_pos].unwrap().1;
+
+        let move_type: MoveType = match piece {
+
+            Piece::Pawn => 'pawns: {
+                let cap = match board.data[end_pos] {
+                    Some(p) => Capture(Some(p.1)),
+                    None => Capture(None),
+                };
+
+
+                if uci_move.len() == 5 {
+                    match &uci_move[4..5] {
+                        "q" => {
+                            break 'pawns MoveType::QueenPromotion(cap)
+                        },
+                        "r" => {
+                            break 'pawns MoveType::RookPromotion(cap)
+                        },
+                        "b" => {
+                            break 'pawns MoveType::BishopPromotion(cap)
+                        },
+                        "n" => {
+                            break 'pawns MoveType::KnightPromotion(cap)
+                        },
+                        _ => panic!("UCI move string invalid for promotion move")
+                    }
+                }
+
+                if let Some(ep) = board.ep_target {
+                    if ep == end_pos {
+                        break 'pawns MoveType::EnPassant
+                    }
+                };
+
+                MoveType::Regular(cap)
+            },
+
+            Piece::Rook | Piece::Knight | Piece::Bishop | Piece::Queen => {
+                if let Some(c) = board.data[end_pos] {
+                    MoveType::Regular(Capture(Some(c.1)))
+                } else {
+                    MoveType::Regular(Capture(None))
+                }
+            }
+
+            Piece::King => match (start_pos, end_pos) {
+                (Square::E1, Square::C1)
+                | (Square::E1, Square::G1)
+                | (Square::E8, Square::C8)
+                | (Square::E8, Square::G8) => MoveType::Castling,
+                _ => {
+                    if let Some(c) = board.data[end_pos] {
+                        MoveType::Regular(Capture(Some(c.1)))
+                    } else {
+                        MoveType::Regular(Capture(None))
+                    }
+                }
+            },
+        };
+
+        MoveData {
+            start_pos,
+            end_pos,
+            piece,
+            move_type,
+        }
+    }
+
+}
+
 impl Board {
     // Starting pos: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
     pub fn from_fen(fen: &str) -> Self {
@@ -271,6 +347,19 @@ impl Board {
             print!("{}{} ({:?}, {:?}) ", from, to, m.piece, m.move_type);
         }
         println!("\n");
+    }
+
+    pub fn get_idx_from_square(&self, uci_pos: &str) -> usize {
+        let file = &uci_pos[0..1];
+        let rank = &uci_pos[1..2];
+
+        let files: [&str; 8] = ["a", "b", "c", "d", "e", "f", "g", "h"];
+        let file_idx: usize = files
+            .iter()
+            .position(|&f| f == file)
+            .unwrap();
+        let rank_idx: usize = (rank.parse::<isize>().unwrap() - 1) as usize;
+        rank_idx * 8 + file_idx
     }
 
     fn is_unoccupied(&self, pos: usize) -> bool {
