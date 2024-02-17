@@ -431,19 +431,4 @@ mod make_move_tests {
         assert_eq!(board.half_moves, 9);
     }
 
-    #[test]
-    fn half_move_clock_100_count_is_stalemate() {
-        let mut board = Board::from_fen("8/4k1b1/8/8/2B2N2/4K3/8/8 w - - 99 1");
-        let result = board.get_valid_moves();
-        let bishop_move = MoveData {
-            start_pos: Square::C4,
-            end_pos: Square::B5,
-            piece: Piece::Bishop,
-            move_type: MoveType::Regular(Capture(None)),
-        };
-        assert!(result.contains(&bishop_move));
-        board.make_move(&bishop_move);
-        let _ = board.get_valid_moves();
-        assert_eq!(board.game_status, GameStatus::StaleMate);
-    }
 }

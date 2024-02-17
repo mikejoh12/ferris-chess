@@ -28,7 +28,7 @@ enum OccupiedStatus {
     Unoccupied,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct MoveData {
     pub start_pos: usize,
     pub end_pos: usize,
@@ -39,7 +39,7 @@ pub struct MoveData {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Capture(pub Option<Piece>);
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum MoveType {
     Regular(Capture),
     Castling,
@@ -60,18 +60,9 @@ struct IrreversibleBoardState {
     ep_target: Option<usize>,
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum GameStatus {
-    WhiteWin,
-    BlackWin,
-    StaleMate,
-    Ongoing,
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct Board {
     cache: cache::Cache,
-    pub game_status: GameStatus,
     pub is_white_to_move: bool,
     pub data: [Option<(Color, Piece)>; 64],
     pub castling_w_00: bool,
@@ -83,8 +74,8 @@ pub struct Board {
     pub full_moves: usize,
     king_pos_w: Option<usize>,
     king_pos_b: Option<usize>,
-    pieces_w: HashSet<usize>,
-    pieces_b: HashSet<usize>,
+    pub pieces_w: HashSet<usize>,
+    pub pieces_b: HashSet<usize>,
     irreversible_board_state_stack: Vec<IrreversibleBoardState>,
 }
 
@@ -300,7 +291,6 @@ impl Board {
             king_pos_b,
             pieces_w,
             pieces_b,
-            game_status: GameStatus::Ongoing,
             irreversible_board_state_stack: vec![],
         }
     }
@@ -341,7 +331,6 @@ impl Board {
             "Halfmove Clock: {} Fullmove counter: {}",
             self.half_moves, self.full_moves
         );
-        println!("Game Status: {:?}", self.game_status);
     }
 
     pub fn print_moves(&self, moves: &Vec<MoveData>) {
@@ -1399,29 +1388,15 @@ impl Board {
 
         moves.extend(self.get_castling_moves());
 
-        if self.half_moves >= 100 && !moves.is_empty() {
-            self.game_status = GameStatus::StaleMate;
-        }
-
-        if moves.is_empty() {
-            self.update_game_status()
-        }
-
         moves
     }
 
-    fn update_game_status(&mut self) {
+    pub fn is_player_mated(&self) -> bool {
         let king_pos = match self.is_white_to_move {
             true => self.king_pos_w,
             false => self.king_pos_b,
         }
         .expect("King position missing on board");
-
-        let is_mated = self.is_position_threatened(king_pos);
-        self.game_status = match (is_mated, self.is_white_to_move) {
-            (true, true) => GameStatus::BlackWin,
-            (true, false) => GameStatus::WhiteWin,
-            _ => GameStatus::StaleMate,
-        }
+        self.is_position_threatened(king_pos)
     }
 }

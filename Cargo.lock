@@ -112,12 +112,16 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "ferris-chess-board",
+ "ferris-chess-engine",
  "rand",
 ]
 
 [[package]]
 name = "ferris-chess-engine"
 version = "0.1.0"
+dependencies = [
+ "ferris-chess-board",
+]
 
 [[package]]
 name = "getrandom"

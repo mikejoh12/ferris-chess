@@ -1,15 +1,16 @@
 use std::{io::BufRead, sync::mpsc, thread};
 extern crate rand;
 use ferris_chess_board::{Board, MoveData};
-use rand::Rng;
+use ferris_chess_engine::Engine;
 
 pub struct Uci {
     board: Option<Board>,
+    engine: Engine,
 }
 
 impl Uci {
     pub fn new() -> Self {
-        Uci { board: None }
+        Uci { board: None, engine: Engine{} }
     }
 
     pub fn start_read_stdin_loop(&mut self, _board: &mut Board) {
@@ -127,11 +128,9 @@ impl Uci {
 
         match &mut self.board {
             Some(board) => {
-                let moves = board.get_valid_moves();
+                let m = self.engine.root_negamax(board, 4);
 
-                let num = rand::thread_rng().gen_range(0..moves.len());
-                let m = &moves[num];
-                let uci_move = m.to_uci_move(board);
+                let uci_move = m.unwrap().to_uci_move(board);
                 println!("bestmove {}", uci_move);
             }
             None => panic!("Got go command without board initialized"),
