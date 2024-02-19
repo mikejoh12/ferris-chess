@@ -41,7 +41,7 @@ impl Engine {
         // Handle mate and stalemate
         if moves.len() == 0 {
             if board.is_player_mated() {
-                max = i32::MIN + depth as i32;
+                max = -100000 - depth as i32;
             } else {
                 max = 0;
             }
@@ -72,12 +72,12 @@ impl Engine {
 
     fn get_piece_weight(&self, piece: Piece) -> i32 {
         match piece {
-            Piece::Pawn => 1,
-            Piece::Rook => 5,
-            Piece::Knight => 3,
-            Piece::Bishop => 3,
-            Piece::Queen => 9,
-            Piece::King => 3
+            Piece::Pawn => 100,
+            Piece::Rook => 500,
+            Piece::Knight => 310,
+            Piece::Bishop => 320,
+            Piece::Queen => 900,
+            Piece::King => 300
         }
     }
 
