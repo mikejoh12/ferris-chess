@@ -10,7 +10,10 @@ pub struct Uci {
 
 impl Uci {
     pub fn new() -> Self {
-        Uci { board: None, engine: Engine{} }
+        Uci {
+            board: None,
+            engine: Engine::new(),
+        }
     }
 
     pub fn start_read_stdin_loop(&mut self, _board: &mut Board) {
@@ -128,7 +131,7 @@ impl Uci {
 
         match &mut self.board {
             Some(board) => {
-                let m = self.engine.root_negamax(board, 4);
+                let m = self.engine.root_negamax(board, 5);
 
                 let uci_move = m.unwrap().to_uci_move(board);
                 println!("bestmove {}", uci_move);

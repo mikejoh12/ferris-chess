@@ -430,5 +430,4 @@ mod make_move_tests {
         board.make_move(&bishop_move);
         assert_eq!(board.half_moves, 9);
     }
-
 }

@@ -14,9 +14,9 @@ pub enum Color {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Piece {
     Pawn,
-    Rook,
     Knight,
     Bishop,
+    Rook,
     Queen,
     King,
 }

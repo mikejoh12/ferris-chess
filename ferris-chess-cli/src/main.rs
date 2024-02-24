@@ -1,8 +1,8 @@
 pub mod uci;
 use crate::uci::Uci;
-use std::{process, time::Instant};
 use clap::{Parser, Subcommand};
 use ferris_chess_board::{self, perft::perft, Board};
+use std::{process, time::Instant};
 
 #[derive(Subcommand, Debug)]
 enum Command {
@@ -55,7 +55,6 @@ fn handle_uci(board: &mut Board) {
     let mut uci = Uci::new();
     uci.start_read_stdin_loop(board);
 }
-
 
 fn perft_results(board: &mut Board, depth: u8) {
     println!("Checking perft for n = {}", depth);
