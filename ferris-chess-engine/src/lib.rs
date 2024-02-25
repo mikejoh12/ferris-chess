@@ -1,4 +1,4 @@
-use ferris_chess_board::{Board, MoveData, Color, Piece};
+use ferris_chess_board::{Board, Color, MoveData, Piece};
 
 #[allow(dead_code)]
 pub struct Engine {
@@ -69,7 +69,6 @@ fn get_game_phase_table(t: &[i32; 64], corr: i32) -> [i32; 64] {
 
 impl Engine {
     pub fn new() -> Engine {
-
         #[rustfmt::skip]
         let mg_pawn_table: [i32; 64] = [
             0,   0,   0,   0,   0,   0,  0,   0,
@@ -216,10 +215,14 @@ impl Engine {
 
         let mg_pawn_table_b = get_game_phase_table(&mg_pawn_table, mg_piece_weight(Piece::Pawn));
         let eg_pawn_table_b = get_game_phase_table(&eg_pawn_table, eg_piece_weight(Piece::Pawn));
-        let mg_knight_table_b = get_game_phase_table(&mg_knight_table, mg_piece_weight(Piece::Knight));
-        let eg_knight_table_b = get_game_phase_table(&eg_knight_table, eg_piece_weight(Piece::Knight));
-        let mg_bishop_table_b = get_game_phase_table(&mg_bishop_table, mg_piece_weight(Piece::Bishop));
-        let eg_bishop_table_b = get_game_phase_table(&eg_bishop_table, eg_piece_weight(Piece::Bishop));
+        let mg_knight_table_b =
+            get_game_phase_table(&mg_knight_table, mg_piece_weight(Piece::Knight));
+        let eg_knight_table_b =
+            get_game_phase_table(&eg_knight_table, eg_piece_weight(Piece::Knight));
+        let mg_bishop_table_b =
+            get_game_phase_table(&mg_bishop_table, mg_piece_weight(Piece::Bishop));
+        let eg_bishop_table_b =
+            get_game_phase_table(&eg_bishop_table, eg_piece_weight(Piece::Bishop));
         let mg_rook_table_b = get_game_phase_table(&mg_rook_table, mg_piece_weight(Piece::Rook));
         let eg_rook_table_b = get_game_phase_table(&eg_rook_table, eg_piece_weight(Piece::Rook));
         let mg_queen_table_b = get_game_phase_table(&mg_queen_table, mg_piece_weight(Piece::Queen));
@@ -227,9 +230,7 @@ impl Engine {
         let mg_king_table_b = get_game_phase_table(&mg_king_table, mg_piece_weight(Piece::King));
         let eg_king_table_b = get_game_phase_table(&eg_king_table, eg_piece_weight(Piece::King));
 
-
         Engine {
-
             mg_pawn_table_w: mirror_table(&mg_pawn_table_b),
             eg_pawn_table_w: mirror_table(&eg_pawn_table_b),
             mg_knight_table_w: mirror_table(&mg_king_table_b),
@@ -257,47 +258,58 @@ impl Engine {
         }
     }
 
-    pub fn root_negamax(&mut self, board: &mut Board, depth: usize) -> Option<MoveData> {
-        let mut max = i32::MIN;
+    pub fn root_alpha_beta(&mut self, board: &mut Board, depth: usize) -> Option<MoveData> {
+        let mut alpha = i32::MIN + 1;
+        let beta = i32::MAX - 1;
         let mut best_move: Option<MoveData> = None;
 
         for m in board.get_valid_moves() {
             board.make_move(&m);
-            let score = -self.negamax(board, depth - 1);
+            let score = -self.alpha_beta(board, depth - 1, -beta, -alpha);
             board.unmake_move(&m);
 
-            if score > max {
-                max = score;
+            if score > alpha {
+                alpha = score;
                 best_move = Some(m.clone());
             }
         }
         best_move
     }
 
-    pub fn negamax(&mut self, board: &mut Board, depth: usize) -> i32 {
+    pub fn alpha_beta(
+        &mut self,
+        board: &mut Board,
+        depth: usize,
+        mut alpha: i32,
+        beta: i32,
+    ) -> i32 {
         if depth == 0 {
             return self.static_eval(board);
         }
-        let mut max = i32::MIN;
 
-        let moves = board.get_valid_moves();
-        for m in &moves {
+        let mut moves = board.get_valid_moves();
+        if moves.is_empty() {
+            if board.is_player_mated() {
+                return -100000 - depth as i32;
+            }
+            return 0;
+        }
+
+        let mut max = i32::MIN;
+        for m in moves.drain(..) {
             board.make_move(&m);
-            let score = -self.negamax(board, depth - 1);
+            let score = -self.alpha_beta(board, depth - 1, -beta, -alpha);
             board.unmake_move(&m);
+
+            if score >= beta {
+                return beta;
+            }
 
             if score > max {
                 max = score;
             }
-        }
 
-        // Handle mate and stalemate
-        if moves.len() == 0 {
-            if board.is_player_mated() {
-                max = -100000 - depth as i32;
-            } else {
-                max = 0;
-            }
+            alpha = alpha.max(score);
         }
 
         max
@@ -331,12 +343,12 @@ impl Engine {
             mg_score -= self.get_mg_score(p, *i) * who_to_move;
             eg_score -= self.get_eg_score(p, *i) * who_to_move;
         }
-        
+
         if game_phase_score > 24 {
             game_phase_score = 24;
         }
 
-        ((game_phase_score * mg_score) + ((24-game_phase_score) * eg_score)) / 24
+        ((game_phase_score * mg_score) + ((24 - game_phase_score) * eg_score)) / 24
     }
 
     fn score_game_phase_pieces(&self, piece: Piece) -> i32 {
@@ -347,7 +359,7 @@ impl Engine {
             Piece::Rook => 2,
             Piece::Queen => 4,
             Piece::King => 0,
-        }      
+        }
     }
 
     fn get_mg_score(&self, piece: (Color, Piece), square: usize) -> i32 {
