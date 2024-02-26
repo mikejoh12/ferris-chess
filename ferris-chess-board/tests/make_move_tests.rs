@@ -6,7 +6,7 @@ mod make_move_tests {
     #[test]
     fn start_position_20_moves() {
         let mut board = Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-        let result = board.get_valid_moves();
+        let result = board.get_pseudo_legal_moves();
         assert_eq!(result.len(), 20);
     }
 
@@ -14,7 +14,7 @@ mod make_move_tests {
     fn castling_allowed_white_both_sides() {
         let mut board =
             Board::from_fen("r3k2r/ppp1nppp/2nbbq2/3pp3/3PP3/2NBBQ2/PPP1NPPP/R3K2R w KQkq - 10 8");
-        let result = board.get_valid_moves();
+        let result = board.get_pseudo_legal_moves();
         assert!(result.contains(&MoveData {
             start_pos: Square::E1,
             end_pos: Square::C1,
@@ -33,7 +33,7 @@ mod make_move_tests {
     fn castling_allowed_black_both_sides() {
         let mut board =
             Board::from_fen("r3k2r/ppp1nppp/2nbbq2/3pp3/3PP3/P1NBBQ2/1PP1NPPP/R3K2R b KQkq - 0 8");
-        let result = board.get_valid_moves();
+        let result = board.get_pseudo_legal_moves();
         assert!(result.contains(&MoveData {
             start_pos: Square::E8,
             end_pos: Square::C8,
@@ -51,7 +51,7 @@ mod make_move_tests {
     #[test]
     fn castling_white_king_side() {
         let mut board = Board::from_fen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1");
-        let result = board.get_valid_moves();
+        let result = board.get_pseudo_legal_moves();
 
         let white_king_castling = MoveData {
             start_pos: Square::E1,
@@ -69,7 +69,7 @@ mod make_move_tests {
     #[test]
     fn castling_white_queen_side() {
         let mut board = Board::from_fen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1");
-        let result = board.get_valid_moves();
+        let result = board.get_pseudo_legal_moves();
 
         let white_queen_castling = MoveData {
             start_pos: Square::E1,
@@ -87,7 +87,7 @@ mod make_move_tests {
     #[test]
     fn castling_black_king_side() {
         let mut board = Board::from_fen("r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1");
-        let result = board.get_valid_moves();
+        let result = board.get_pseudo_legal_moves();
 
         let black_king_castling = MoveData {
             start_pos: Square::E8,
@@ -105,7 +105,7 @@ mod make_move_tests {
     #[test]
     fn castling_black_queen_side() {
         let mut board = Board::from_fen("r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1");
-        let result = board.get_valid_moves();
+        let result = board.get_pseudo_legal_moves();
 
         let black_queen_castling = MoveData {
             start_pos: Square::E8,
@@ -123,7 +123,7 @@ mod make_move_tests {
     #[test]
     fn no_white_castling_king_crosses_attack_has_castling_rights() {
         let mut board = Board::from_fen("4k3/8/8/3r1r2/8/8/8/R3K2R w KQ - 1 1");
-        let result = board.get_valid_moves();
+        let result = board.get_pseudo_legal_moves();
         assert!(!result.contains(&MoveData {
             start_pos: Square::E1,
             end_pos: Square::C1,
@@ -141,7 +141,7 @@ mod make_move_tests {
     #[test]
     fn no_black_castling_king_crosses_attack_has_castling_rights() {
         let mut board = Board::from_fen("r3k2r/8/8/8/3R1R2/8/8/4K3 b kq - 1 1");
-        let result = board.get_valid_moves();
+        let result = board.get_pseudo_legal_moves();
         assert!(!result.contains(&MoveData {
             start_pos: Square::E8,
             end_pos: Square::C8,
@@ -160,7 +160,7 @@ mod make_move_tests {
     fn en_passant_move_available_for_white_both_directions() {
         let mut board =
             Board::from_fen("rnbqkbnr/2pp1pp1/pp5p/3PpP2/8/8/PPP1P1PP/RNBQKBNR w KQkq e6 0 5");
-        let result = board.get_valid_moves();
+        let result = board.get_pseudo_legal_moves();
         assert!(result.contains(&MoveData {
             start_pos: Square::D5,
             end_pos: Square::E6,
@@ -179,7 +179,7 @@ mod make_move_tests {
     fn en_passant_move_available_for_black_both_directions() {
         let mut board =
             Board::from_fen("rnbqkbnr/ppp1p1pp/8/8/3pPp2/PP4PP/2PP1P2/RNBQKBNR b KQkq e3 0 5");
-        let result = board.get_valid_moves();
+        let result = board.get_pseudo_legal_moves();
         assert!(result.contains(&MoveData {
             start_pos: Square::D4,
             end_pos: Square::E3,
@@ -227,7 +227,7 @@ mod make_move_tests {
     #[test]
     fn pawn_promotion_queen_white() {
         let mut board = Board::from_fen("8/P7/4k3/8/8/4K3/8/8 w - - 0 1");
-        let result = board.get_valid_moves();
+        let result = board.get_pseudo_legal_moves();
 
         assert!(result.contains(&MoveData {
             start_pos: Square::A7,
@@ -240,7 +240,7 @@ mod make_move_tests {
     #[test]
     fn pawn_promotion_rook_white() {
         let mut board = Board::from_fen("8/P7/4k3/8/8/4K3/8/8 w - - 0 1");
-        let result = board.get_valid_moves();
+        let result = board.get_pseudo_legal_moves();
 
         assert!(result.contains(&MoveData {
             start_pos: Square::A7,
@@ -253,7 +253,7 @@ mod make_move_tests {
     #[test]
     fn pawn_promotion_bishop_white() {
         let mut board = Board::from_fen("8/P7/4k3/8/8/4K3/8/8 w - - 0 1");
-        let result = board.get_valid_moves();
+        let result = board.get_pseudo_legal_moves();
 
         assert!(result.contains(&MoveData {
             start_pos: Square::A7,
@@ -266,7 +266,7 @@ mod make_move_tests {
     #[test]
     fn pawn_promotion_knight_white() {
         let mut board = Board::from_fen("8/P7/4k3/8/8/4K3/8/8 w - - 0 1");
-        let result = board.get_valid_moves();
+        let result = board.get_pseudo_legal_moves();
 
         assert!(result.contains(&MoveData {
             start_pos: Square::A7,
@@ -279,7 +279,7 @@ mod make_move_tests {
     #[test]
     fn pawn_promotion_w_left_capture_white() {
         let mut board = Board::from_fen("1n1r4/2P2k2/8/8/8/5K2/8/8 w - - 0 1");
-        let result = board.get_valid_moves();
+        let result = board.get_pseudo_legal_moves();
 
         assert!(result.contains(&MoveData {
             start_pos: Square::C7,
@@ -292,7 +292,7 @@ mod make_move_tests {
     #[test]
     fn pawn_promotion_w_right_capture_white() {
         let mut board = Board::from_fen("1n1r4/2P2k2/8/8/8/5K2/8/8 w - - 0 1");
-        let result = board.get_valid_moves();
+        let result = board.get_pseudo_legal_moves();
 
         assert!(result.contains(&MoveData {
             start_pos: Square::C7,
@@ -305,7 +305,7 @@ mod make_move_tests {
     #[test]
     fn pawn_promotion_queen_black() {
         let mut board = Board::from_fen("8/5k2/8/8/4K3/8/2p5/8 b - - 0 1");
-        let result = board.get_valid_moves();
+        let result = board.get_pseudo_legal_moves();
 
         assert!(result.contains(&MoveData {
             start_pos: Square::C2,
@@ -318,7 +318,7 @@ mod make_move_tests {
     #[test]
     fn pawn_promotion_rook_black() {
         let mut board = Board::from_fen("8/P7/4k3/8/8/4K3/8/8 w - - 0 1");
-        let result = board.get_valid_moves();
+        let result = board.get_pseudo_legal_moves();
 
         assert!(result.contains(&MoveData {
             start_pos: Square::A7,
@@ -331,7 +331,7 @@ mod make_move_tests {
     #[test]
     fn pawn_promotion_bishop_black() {
         let mut board = Board::from_fen("8/P7/4k3/8/8/4K3/8/8 w - - 0 1");
-        let result = board.get_valid_moves();
+        let result = board.get_pseudo_legal_moves();
 
         assert!(result.contains(&MoveData {
             start_pos: Square::A7,
@@ -344,7 +344,7 @@ mod make_move_tests {
     #[test]
     fn pawn_promotion_knight_black() {
         let mut board = Board::from_fen("8/P7/4k3/8/8/4K3/8/8 w - - 0 1");
-        let result = board.get_valid_moves();
+        let result = board.get_pseudo_legal_moves();
 
         assert!(result.contains(&MoveData {
             start_pos: Square::A7,
@@ -357,7 +357,7 @@ mod make_move_tests {
     #[test]
     fn pawn_promotion_w_left_capture_black() {
         let mut board = Board::from_fen("8/4k3/8/8/8/4K3/6p1/5B1Q b - - 0 1");
-        let result = board.get_valid_moves();
+        let result = board.get_pseudo_legal_moves();
 
         assert!(result.contains(&MoveData {
             start_pos: Square::G2,
@@ -370,7 +370,7 @@ mod make_move_tests {
     #[test]
     fn pawn_promotion_w_right_capture_black() {
         let mut board = Board::from_fen("8/4k3/8/8/8/4K3/6p1/5B1Q b - - 0 1");
-        let result = board.get_valid_moves();
+        let result = board.get_pseudo_legal_moves();
 
         assert!(result.contains(&MoveData {
             start_pos: Square::G2,
@@ -385,7 +385,7 @@ mod make_move_tests {
         let mut board = Board::from_fen(
             "r1b1k2r/pppp1ppp/2nb1q1n/4p3/4P3/2NB1Q1N/PPPP1PPP/R1B1K2R w KQkq - 8 6",
         );
-        let result = board.get_valid_moves();
+        let result = board.get_pseudo_legal_moves();
         let pawn_move = MoveData {
             start_pos: Square::A2,
             end_pos: Square::A3,
@@ -402,7 +402,7 @@ mod make_move_tests {
         let mut board = Board::from_fen(
             "r1b1k2r/pppp1ppp/2nb1q1n/4p3/4P3/2NB1Q1N/PPPP1PPP/R1B1K2R w KQkq - 8 6",
         );
-        let result = board.get_valid_moves();
+        let result = board.get_pseudo_legal_moves();
         let queen_move = MoveData {
             start_pos: Square::F3,
             end_pos: Square::F6,
@@ -419,7 +419,7 @@ mod make_move_tests {
         let mut board = Board::from_fen(
             "r1b1k2r/pppp1ppp/2nb1q1n/4p3/4P3/2NB1Q1N/PPPP1PPP/R1B1K2R w KQkq - 8 6",
         );
-        let result = board.get_valid_moves();
+        let result = board.get_pseudo_legal_moves();
         let bishop_move = MoveData {
             start_pos: Square::D3,
             end_pos: Square::B5,

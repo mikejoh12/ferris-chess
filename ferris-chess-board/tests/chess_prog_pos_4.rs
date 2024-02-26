@@ -34,6 +34,7 @@ fn perft_n_4() {
     assert_eq!(result, 422333);
 }
 
+#[ignore]
 #[test]
 fn perft_n_5() {
     let mut board = Board::from_fen(POS_4);

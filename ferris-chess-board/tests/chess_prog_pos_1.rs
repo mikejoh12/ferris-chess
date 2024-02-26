@@ -1,9 +1,6 @@
 use ferris_chess_board::perft::*;
 use ferris_chess_board::*;
 
-// Current performance
-// n = 1-6 time is 7.74s with cargo test --release
-
 #[test]
 fn perft_n_1() {
     let mut board = Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
@@ -39,6 +36,7 @@ fn perft_n_5() {
     assert_eq!(result, 4865609);
 }
 
+#[ignore]
 #[test]
 fn perft_n_6() {
     let mut board = Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");

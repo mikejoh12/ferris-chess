@@ -263,15 +263,19 @@ impl Engine {
         let beta = i32::MAX - 1;
         let mut best_move: Option<MoveData> = None;
 
-        for m in board.get_valid_moves() {
+        for m in board.get_pseudo_legal_moves() {
             board.make_move(&m);
-            let score = -self.alpha_beta(board, depth - 1, -beta, -alpha);
+            if !board.is_king_left_in_check() {
+                let score = -self.alpha_beta(board, depth - 1, -beta, -alpha);
+
+                if score > alpha {
+                    alpha = score;
+                    best_move = Some(m.clone());
+                }
+            }
             board.unmake_move(&m);
 
-            if score > alpha {
-                alpha = score;
-                best_move = Some(m.clone());
-            }
+
         }
         best_move
     }
@@ -288,35 +292,42 @@ impl Engine {
             return self.static_eval(board);
         }
 
-        let mut moves = board.get_valid_moves();
-        if moves.is_empty() {
+        let mut moves = board.get_pseudo_legal_moves();
+        let mut legal_moves = 0;
+
+        let mut max = i32::MIN;
+        for m in moves.drain(..) {
+            board.make_move(&m);
+            if board.is_king_left_in_check() {
+                board.unmake_move(&m)
+            } else {
+                legal_moves += 1;
+                let score = -self.alpha_beta(board, depth - 1, -beta, -alpha);
+                board.unmake_move(&m);
+
+                if score >= beta {
+                    return beta;
+                }
+
+                if score > max {
+                    max = score;
+                }
+
+                alpha = alpha.max(score);
+            }
+        }
+
+        if legal_moves == 0 {
             if board.is_player_mated() {
                 return -100000 - depth as i32;
             }
             return 0;
         }
 
-        let mut max = i32::MIN;
-        for m in moves.drain(..) {
-            board.make_move(&m);
-            let score = -self.alpha_beta(board, depth - 1, -beta, -alpha);
-            board.unmake_move(&m);
-
-            if score >= beta {
-                return beta;
-            }
-
-            if score > max {
-                max = score;
-            }
-
-            alpha = alpha.max(score);
-        }
-
         max
     }
 
-    
+    #[allow(dead_code)]
     fn quiesce(&self, board: &mut Board, mut alpha: i32, beta: i32) -> i32 {
         let stand_pat = self.static_eval(board);
 
@@ -327,7 +338,7 @@ impl Engine {
             alpha = stand_pat;
         }
 
-        let moves = board.get_valid_moves();
+        let moves = board.get_pseudo_legal_moves();
 
         for m in moves {
             match m.move_type {

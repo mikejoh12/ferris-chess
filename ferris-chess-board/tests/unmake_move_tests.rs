@@ -8,7 +8,7 @@ mod unmake_move_tests {
         let mut board = Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
         let starting_board = board.clone();
 
-        let result = board.get_valid_moves();
+        let result = board.get_pseudo_legal_moves();
         let pawn_move = MoveData {
             start_pos: Square::E2,
             end_pos: Square::E4,
@@ -27,7 +27,7 @@ mod unmake_move_tests {
             Board::from_fen("rnbqkbnr/p1pppppp/8/1p6/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1");
         let starting_board = board.clone();
 
-        let result = board.get_valid_moves();
+        let result = board.get_pseudo_legal_moves();
         let bishop_move = MoveData {
             start_pos: Square::F1,
             end_pos: Square::B5,
@@ -48,7 +48,7 @@ mod unmake_move_tests {
             Board::from_fen("r1bqkbnr/pppp1ppp/2n5/4p3/3PP3/2N5/PPP2PPP/R1BQKBNR b KQkq d3 0 3");
         let starting_board = board.clone();
 
-        let result = board.get_valid_moves();
+        let result = board.get_pseudo_legal_moves();
         let knight_move = MoveData {
             start_pos: Square::C6,
             end_pos: Square::D4,
@@ -70,7 +70,7 @@ mod unmake_move_tests {
 
         let start_position = board.clone();
 
-        let w_moves = board.get_valid_moves();
+        let w_moves = board.get_pseudo_legal_moves();
 
         let w_queen_castling = &MoveData {
             start_pos: Square::E1,
@@ -94,7 +94,7 @@ mod unmake_move_tests {
 
         let start_position = board.clone();
 
-        let b_moves = board.get_valid_moves();
+        let b_moves = board.get_pseudo_legal_moves();
 
         let b_queen_castling = &MoveData {
             start_pos: Square::E8,
@@ -118,7 +118,7 @@ mod unmake_move_tests {
 
         let start_position = board.clone();
 
-        let w_moves = board.get_valid_moves();
+        let w_moves = board.get_pseudo_legal_moves();
 
         let w_king_castling = &MoveData {
             start_pos: Square::E1,
@@ -142,7 +142,7 @@ mod unmake_move_tests {
 
         let start_position = board.clone();
 
-        let b_moves = board.get_valid_moves();
+        let b_moves = board.get_pseudo_legal_moves();
 
         let b_king_castling = &MoveData {
             start_pos: Square::E8,
@@ -165,7 +165,7 @@ mod unmake_move_tests {
             Board::from_fen("rnbqkbnr/2pp1pp1/pp5p/3PpP2/8/8/PPP1P1PP/RNBQKBNR w KQkq e6 0 5");
         let start_board = board.clone();
 
-        let w_moves = board.get_valid_moves();
+        let w_moves = board.get_pseudo_legal_moves();
 
         let ep_move = &MoveData {
             start_pos: Square::D5,
@@ -188,7 +188,7 @@ mod unmake_move_tests {
             Board::from_fen("rnbqkbnr/ppp1p1pp/8/8/3pPp2/PP4PP/2PP1P2/RNBQKBNR b KQkq e3 0 5");
         let start_board = board.clone();
 
-        let b_moves = board.get_valid_moves();
+        let b_moves = board.get_pseudo_legal_moves();
 
         let ep_move = &MoveData {
             start_pos: Square::D4,
@@ -210,7 +210,7 @@ mod unmake_move_tests {
         let mut board = Board::from_fen("8/P7/4k3/8/8/4K3/8/8 w - - 0 1");
         let start_pos = board.clone();
 
-        let moves = board.get_valid_moves();
+        let moves = board.get_pseudo_legal_moves();
 
         let w_promotion_move = &MoveData {
             start_pos: Square::A7,
@@ -230,7 +230,7 @@ mod unmake_move_tests {
         let mut board = Board::from_fen("8/5k2/8/8/4K3/8/2p5/8 b - - 0 1");
         let start_pos = board.clone();
 
-        let moves = board.get_valid_moves();
+        let moves = board.get_pseudo_legal_moves();
 
         let b_promotion_move = &MoveData {
             start_pos: Square::C2,
@@ -250,7 +250,7 @@ mod unmake_move_tests {
         let mut board = Board::from_fen("1n1r4/2P2k2/8/8/8/5K2/8/8 w - - 0 1");
         let start_pos = board.clone();
 
-        let moves = board.get_valid_moves();
+        let moves = board.get_pseudo_legal_moves();
 
         let w_promotion_capture_move = &MoveData {
             start_pos: Square::C7,
@@ -270,7 +270,7 @@ mod unmake_move_tests {
         let mut board = Board::from_fen("8/4k3/8/8/8/4K3/6p1/5B1Q b - - 0 1");
         let start_pos = board.clone();
 
-        let moves = board.get_valid_moves();
+        let moves = board.get_pseudo_legal_moves();
 
         let b_promotion_capture_move = &MoveData {
             start_pos: Square::G2,

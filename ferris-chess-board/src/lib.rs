@@ -369,11 +369,7 @@ impl Board {
         }
     }
 
-    fn is_position_threatened(&self, pos: usize) -> bool {
-        let opponent_color = match self.is_white_to_move {
-            true => Color::Black,
-            false => Color::White,
-        };
+    fn is_position_threatened(&self, pos: usize, opponent_color: Color) -> bool {
 
         // Rook and queen threat
         for ray in &self.cache.rook_rays[pos] {
@@ -415,11 +411,11 @@ impl Board {
         }
 
         // Pawn threat
-        if self.is_white_to_move && self.is_position_threatened_by_black_pawn(pos) {
+        if opponent_color == Color::Black && self.is_position_threatened_by_black_pawn(pos) {
             return true;
         }
 
-        if !self.is_white_to_move && self.is_position_threatened_by_white_pawn(pos) {
+        if opponent_color == Color::White && self.is_position_threatened_by_white_pawn(pos) {
             return true;
         }
 
@@ -1253,7 +1249,7 @@ impl Board {
             if self.castling_w_000 {
                 if self.data[Square::A1] == Some((Color::White, Piece::Rook))
                     && [1, 2, 3].iter().all(|s| self.data[*s] == None)
-                    && [2, 3, 4].iter().all(|s| !self.is_position_threatened(*s))
+                    && [2, 3, 4].iter().all(|s| !self.is_position_threatened(*s, Color::Black))
                 {
                     moves.push(MoveData {
                         start_pos: 4,
@@ -1265,7 +1261,7 @@ impl Board {
             }
             if self.data[Square::H1] == Some((Color::White, Piece::Rook)) && self.castling_w_00 {
                 if [5, 6].iter().all(|s| self.data[*s] == None)
-                    && [4, 5, 6].iter().all(|s| !self.is_position_threatened(*s))
+                    && [4, 5, 6].iter().all(|s| !self.is_position_threatened(*s, Color::Black))
                 {
                     moves.push(MoveData {
                         start_pos: 4,
@@ -1280,7 +1276,7 @@ impl Board {
                 if [57, 58, 59].iter().all(|s| self.data[*s] == None)
                     && [58, 59, 60]
                         .iter()
-                        .all(|s| !self.is_position_threatened(*s))
+                        .all(|s| !self.is_position_threatened(*s, Color::White))
                 {
                     moves.push(MoveData {
                         start_pos: 60,
@@ -1294,7 +1290,7 @@ impl Board {
                 if [61, 62].iter().all(|s| self.data[*s] == None)
                     && [60, 61, 62]
                         .iter()
-                        .all(|s| !self.is_position_threatened(*s))
+                        .all(|s| !self.is_position_threatened(*s, Color::White))
                 {
                     moves.push(MoveData {
                         start_pos: 60,
@@ -1309,58 +1305,7 @@ impl Board {
         moves
     }
 
-    fn is_legal_move(&mut self, move_data: &MoveData) -> bool {
-        let temp = self.data[move_data.end_pos];
-        self.data[move_data.end_pos] = self.data[move_data.start_pos];
-        self.data[move_data.start_pos] = None;
-
-        // Update king position
-        if move_data.piece == Piece::King && self.is_white_to_move {
-            self.king_pos_w = Some(move_data.end_pos);
-        } else if move_data.piece == Piece::King && !self.is_white_to_move {
-            self.king_pos_b = Some(move_data.end_pos);
-        }
-
-        let king_pos = match self.is_white_to_move {
-            true => self.king_pos_w,
-            false => self.king_pos_b,
-        }
-        .expect("King is not found on board");
-
-        let is_legal = match move_data.move_type == MoveType::EnPassant {
-            true => {
-                if self.is_white_to_move {
-                    self.data[move_data.end_pos - 8] = None;
-                } else {
-                    self.data[move_data.end_pos + 8] = None;
-                }
-
-                let is_legal_with_ep = !self.is_position_threatened(king_pos);
-
-                if self.is_white_to_move {
-                    self.data[move_data.end_pos - 8] = Some((Color::Black, Piece::Pawn));
-                } else {
-                    self.data[move_data.end_pos + 8] = Some((Color::White, Piece::Pawn));
-                }
-                is_legal_with_ep
-            }
-            false => !self.is_position_threatened(king_pos),
-        };
-
-        // Restore king position
-        if move_data.piece == Piece::King && self.is_white_to_move {
-            self.king_pos_w = Some(move_data.start_pos);
-        } else if move_data.piece == Piece::King && !self.is_white_to_move {
-            self.king_pos_b = Some(move_data.start_pos);
-        }
-
-        self.data[move_data.start_pos] = self.data[move_data.end_pos];
-        self.data[move_data.end_pos] = temp;
-
-        is_legal
-    }
-
-    pub fn get_valid_moves(&mut self) -> Vec<MoveData> {
+    pub fn get_pseudo_legal_moves(&mut self) -> Vec<MoveData> {
         let mut moves: Vec<MoveData> = vec![];
         let positions: &HashSet<usize> = match self.is_white_to_move {
             true => &self.pieces_w,
@@ -1380,9 +1325,7 @@ impl Board {
                 };
 
             for m in position_moves {
-                if self.is_legal_move(&m) {
-                    moves.push(m);
-                }
+                moves.push(m);
             }
         }
 
@@ -1395,8 +1338,26 @@ impl Board {
         let king_pos = match self.is_white_to_move {
             true => self.king_pos_w,
             false => self.king_pos_b,
+        }.expect("King position missing on board");
+
+        let opponent_color = match self.is_white_to_move {
+            true => Color::Black,
+            false => Color::White,
+        };
+        self.is_position_threatened(king_pos, opponent_color)
+    }
+    
+    pub fn is_king_left_in_check(&self) -> bool {
+        let king_pos = match self.is_white_to_move {
+            true => self.king_pos_b,
+            false => self.king_pos_w,
         }
         .expect("King position missing on board");
-        self.is_position_threatened(king_pos)
+
+        let threat_color = match self.is_white_to_move {
+            true => Color::White,
+            false => Color::Black,
+        };
+        self.is_position_threatened(king_pos, threat_color)    
     }
 }

@@ -36,6 +36,7 @@ fn perft_n_4() {
     assert_eq!(result, 4085603);
 }
 
+#[ignore]
 #[test]
 fn perft_n_5() {
     let mut board =

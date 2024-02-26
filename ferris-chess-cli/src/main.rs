@@ -71,6 +71,6 @@ fn perft_results(board: &mut Board, depth: u8) {
 
 fn debug_board(board: &mut Board) {
     board.print();
-    let moves = board.get_valid_moves();
+    let moves = board.get_pseudo_legal_moves();
     println!("Moves: {:?}", moves);
 }
