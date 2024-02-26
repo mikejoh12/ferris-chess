@@ -1,4 +1,4 @@
-use ferris_chess_board::{Board, Color, MoveData, Piece};
+use ferris_chess_board::{Board, Capture, Color, MoveData, MoveType, Piece};
 
 #[allow(dead_code)]
 pub struct Engine {
@@ -284,6 +284,7 @@ impl Engine {
         beta: i32,
     ) -> i32 {
         if depth == 0 {
+            //return self.quiesce(board, alpha, beta);
             return self.static_eval(board);
         }
 
@@ -313,6 +314,43 @@ impl Engine {
         }
 
         max
+    }
+
+    
+    fn quiesce(&self, board: &mut Board, mut alpha: i32, beta: i32) -> i32 {
+        let stand_pat = self.static_eval(board);
+
+        if stand_pat >= beta {
+            return beta;
+        }
+        if alpha < stand_pat {
+            alpha = stand_pat;
+        }
+
+        let moves = board.get_valid_moves();
+
+        for m in moves {
+            match m.move_type {
+                MoveType::Regular(Capture(Some(_))) |
+                MoveType::EnPassant |
+                MoveType::QueenPromotion(Capture(Some(_))) |
+                MoveType::RookPromotion(Capture(Some(_))) |
+                MoveType::BishopPromotion(Capture(Some(_))) |
+                MoveType::KnightPromotion(Capture(Some(_))) => {
+                    board.make_move(&m);
+                    let score = -self.quiesce(board, -beta, -alpha);
+                    board.unmake_move(&m);
+                    if score >= beta {
+                        return beta;
+                    }
+                    if score > alpha {
+                        alpha = score;
+                    }
+                },
+                _ => (),
+            }
+        }
+        alpha
     }
 
     fn static_eval(&self, board: &Board) -> i32 {
