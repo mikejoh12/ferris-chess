@@ -19,13 +19,15 @@ mod make_move_tests {
             start_pos: Square::E1,
             end_pos: Square::C1,
             piece: Piece::King,
-            move_type: MoveType::Castling
+            move_type: MoveType::Castling,
+            capture: None,
         }));
         assert!(result.contains(&MoveData {
             start_pos: Square::E1,
             end_pos: Square::G1,
             piece: Piece::King,
-            move_type: MoveType::Castling
+            move_type: MoveType::Castling,
+            capture: None,
         }));
     }
 
@@ -38,13 +40,15 @@ mod make_move_tests {
             start_pos: Square::E8,
             end_pos: Square::C8,
             piece: Piece::King,
-            move_type: MoveType::Castling
+            move_type: MoveType::Castling,
+            capture: None,
         }));
         assert!(result.contains(&MoveData {
             start_pos: Square::E8,
             end_pos: Square::G8,
             piece: Piece::King,
-            move_type: MoveType::Castling
+            move_type: MoveType::Castling,
+            capture: None,
         }));
     }
 
@@ -58,6 +62,7 @@ mod make_move_tests {
             end_pos: Square::G1,
             piece: Piece::King,
             move_type: MoveType::Castling,
+            capture: None,
         };
 
         assert!(result.contains(&white_king_castling));
@@ -76,6 +81,7 @@ mod make_move_tests {
             end_pos: Square::C1,
             piece: Piece::King,
             move_type: MoveType::Castling,
+            capture: None,
         };
 
         assert!(result.contains(&white_queen_castling));
@@ -94,6 +100,7 @@ mod make_move_tests {
             end_pos: Square::G8,
             piece: Piece::King,
             move_type: MoveType::Castling,
+            capture: None,
         };
 
         assert!(result.contains(&black_king_castling));
@@ -112,6 +119,7 @@ mod make_move_tests {
             end_pos: Square::C8,
             piece: Piece::King,
             move_type: MoveType::Castling,
+            capture: None,
         };
 
         assert!(result.contains(&black_queen_castling));
@@ -128,13 +136,15 @@ mod make_move_tests {
             start_pos: Square::E1,
             end_pos: Square::C1,
             piece: Piece::King,
-            move_type: MoveType::Castling
+            move_type: MoveType::Castling,
+            capture: None,
         }));
         assert!(!result.contains(&MoveData {
             start_pos: Square::E1,
             end_pos: Square::G1,
             piece: Piece::King,
-            move_type: MoveType::Castling
+            move_type: MoveType::Castling,
+            capture: None,
         }));
     }
 
@@ -146,13 +156,15 @@ mod make_move_tests {
             start_pos: Square::E8,
             end_pos: Square::C8,
             piece: Piece::King,
-            move_type: MoveType::Castling
+            move_type: MoveType::Castling,
+            capture: None,
         }));
         assert!(!result.contains(&MoveData {
             start_pos: Square::E8,
             end_pos: Square::G8,
             piece: Piece::King,
-            move_type: MoveType::Castling
+            move_type: MoveType::Castling,
+            capture: None,
         }));
     }
 
@@ -165,13 +177,15 @@ mod make_move_tests {
             start_pos: Square::D5,
             end_pos: Square::E6,
             piece: Piece::Pawn,
-            move_type: MoveType::EnPassant
+            move_type: MoveType::EnPassant,
+            capture: Some(Piece::Pawn),
         }));
         assert!(result.contains(&MoveData {
             start_pos: Square::F5,
             end_pos: Square::E6,
             piece: Piece::Pawn,
             move_type: MoveType::EnPassant,
+            capture: Some(Piece::Pawn),
         }));
     }
 
@@ -184,13 +198,15 @@ mod make_move_tests {
             start_pos: Square::D4,
             end_pos: Square::E3,
             piece: Piece::Pawn,
-            move_type: MoveType::EnPassant
+            move_type: MoveType::EnPassant,
+            capture: Some(Piece::Pawn),
         }));
         assert!(result.contains(&MoveData {
             start_pos: Square::F4,
             end_pos: Square::E3,
             piece: Piece::Pawn,
             move_type: MoveType::EnPassant,
+            capture: Some(Piece::Pawn),
         }));
     }
 
@@ -205,6 +221,7 @@ mod make_move_tests {
             end_pos: Square::E6,
             piece: Piece::Pawn,
             move_type: MoveType::EnPassant,
+            capture: Some(Piece::Pawn),
         });
         assert_eq!(board.data[Square::E5], None);
     }
@@ -220,6 +237,7 @@ mod make_move_tests {
             end_pos: Square::E3,
             piece: Piece::Pawn,
             move_type: MoveType::EnPassant,
+            capture: Some(Piece::Pawn),
         });
         assert_eq!(board.data[Square::E4], None);
     }
@@ -233,7 +251,8 @@ mod make_move_tests {
             start_pos: Square::A7,
             end_pos: Square::A8,
             piece: Piece::Pawn,
-            move_type: MoveType::QueenPromotion(Capture(None)),
+            move_type: MoveType::QueenPromotion,
+            capture: None,
         }));
     }
 
@@ -246,7 +265,8 @@ mod make_move_tests {
             start_pos: Square::A7,
             end_pos: Square::A8,
             piece: Piece::Pawn,
-            move_type: MoveType::RookPromotion(Capture(None)),
+            move_type: MoveType::RookPromotion,
+            capture: None,
         }));
     }
 
@@ -259,7 +279,8 @@ mod make_move_tests {
             start_pos: Square::A7,
             end_pos: Square::A8,
             piece: Piece::Pawn,
-            move_type: MoveType::BishopPromotion(Capture(None)),
+            move_type: MoveType::BishopPromotion,
+            capture: None,
         }));
     }
 
@@ -272,7 +293,8 @@ mod make_move_tests {
             start_pos: Square::A7,
             end_pos: Square::A8,
             piece: Piece::Pawn,
-            move_type: MoveType::KnightPromotion(Capture(None)),
+            move_type: MoveType::KnightPromotion,
+            capture: None,
         }));
     }
 
@@ -285,7 +307,8 @@ mod make_move_tests {
             start_pos: Square::C7,
             end_pos: Square::B8,
             piece: Piece::Pawn,
-            move_type: MoveType::QueenPromotion(Capture(Some(Piece::Knight))),
+            move_type: MoveType::QueenPromotion,
+            capture: Some(Piece::Knight),
         }));
     }
 
@@ -298,7 +321,8 @@ mod make_move_tests {
             start_pos: Square::C7,
             end_pos: Square::D8,
             piece: Piece::Pawn,
-            move_type: MoveType::QueenPromotion(Capture(Some(Piece::Rook))),
+            move_type: MoveType::QueenPromotion,
+            capture: Some(Piece::Rook),
         }));
     }
 
@@ -311,7 +335,8 @@ mod make_move_tests {
             start_pos: Square::C2,
             end_pos: Square::C1,
             piece: Piece::Pawn,
-            move_type: MoveType::QueenPromotion(Capture(None)),
+            move_type: MoveType::QueenPromotion,
+            capture: None,
         }));
     }
 
@@ -324,7 +349,8 @@ mod make_move_tests {
             start_pos: Square::A7,
             end_pos: Square::A8,
             piece: Piece::Pawn,
-            move_type: MoveType::RookPromotion(Capture(None)),
+            move_type: MoveType::RookPromotion,
+            capture: None,
         }));
     }
 
@@ -337,7 +363,8 @@ mod make_move_tests {
             start_pos: Square::A7,
             end_pos: Square::A8,
             piece: Piece::Pawn,
-            move_type: MoveType::BishopPromotion(Capture(None)),
+            move_type: MoveType::BishopPromotion,
+            capture: None,
         }));
     }
 
@@ -350,7 +377,8 @@ mod make_move_tests {
             start_pos: Square::A7,
             end_pos: Square::A8,
             piece: Piece::Pawn,
-            move_type: MoveType::KnightPromotion(Capture(None)),
+            move_type: MoveType::KnightPromotion,
+            capture: None,
         }));
     }
 
@@ -363,7 +391,8 @@ mod make_move_tests {
             start_pos: Square::G2,
             end_pos: Square::F1,
             piece: Piece::Pawn,
-            move_type: MoveType::QueenPromotion(Capture(Some(Piece::Bishop))),
+            move_type: MoveType::QueenPromotion,
+            capture: Some(Piece::Bishop),
         }));
     }
 
@@ -376,7 +405,8 @@ mod make_move_tests {
             start_pos: Square::G2,
             end_pos: Square::H1,
             piece: Piece::Pawn,
-            move_type: MoveType::QueenPromotion(Capture(Some(Piece::Queen))),
+            move_type: MoveType::QueenPromotion,
+            capture: Some(Piece::Queen),
         }));
     }
 
@@ -390,7 +420,8 @@ mod make_move_tests {
             start_pos: Square::A2,
             end_pos: Square::A3,
             piece: Piece::Pawn,
-            move_type: MoveType::Regular(Capture(None)),
+            move_type: MoveType::Regular,
+            capture: None,
         };
         assert!(result.contains(&pawn_move));
         board.make_move(&pawn_move);
@@ -407,7 +438,8 @@ mod make_move_tests {
             start_pos: Square::F3,
             end_pos: Square::F6,
             piece: Piece::Queen,
-            move_type: MoveType::Regular(Capture(Some(Piece::Queen))),
+            move_type: MoveType::Regular,
+            capture: Some(Piece::Queen),
         };
         assert!(result.contains(&queen_move));
         board.make_move(&queen_move);
@@ -424,7 +456,8 @@ mod make_move_tests {
             start_pos: Square::D3,
             end_pos: Square::B5,
             piece: Piece::Bishop,
-            move_type: MoveType::Regular(Capture(None)),
+            move_type: MoveType::Regular,
+            capture: None,
         };
         assert!(result.contains(&bishop_move));
         board.make_move(&bishop_move);

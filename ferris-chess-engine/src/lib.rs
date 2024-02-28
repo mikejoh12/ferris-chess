@@ -1,4 +1,4 @@
-use ferris_chess_board::{Board, Capture, Color, MoveData, MoveType, Piece};
+use ferris_chess_board::{Board, Color, MoveData, MoveType, Piece};
 use std::time::{Duration, Instant};
 
 #[allow(dead_code)]
@@ -313,8 +313,8 @@ impl Engine {
         beta: i32,
     ) -> i32 {
         if depth == 0 {
-            //return self.quiesce(board, alpha, beta);
-            return self.static_eval(board);
+            return self.quiesce(board, alpha, beta);
+            //return self.static_eval(board);
         }
 
         let mut moves = board.get_pseudo_legal_moves();
@@ -366,13 +366,8 @@ impl Engine {
         let moves = board.get_pseudo_legal_moves();
 
         for m in moves {
-            match m.move_type {
-                MoveType::Regular(Capture(Some(_)))
-                | MoveType::EnPassant
-                | MoveType::QueenPromotion(Capture(Some(_)))
-                | MoveType::RookPromotion(Capture(Some(_)))
-                | MoveType::BishopPromotion(Capture(Some(_)))
-                | MoveType::KnightPromotion(Capture(Some(_))) => {
+            match m.capture {
+                Some(_) => {
                     board.make_move(&m);
                     let score = -self.quiesce(board, -beta, -alpha);
                     board.unmake_move(&m);
@@ -383,7 +378,7 @@ impl Engine {
                         alpha = score;
                     }
                 }
-                _ => (),
+                None => (),
             }
         }
         alpha

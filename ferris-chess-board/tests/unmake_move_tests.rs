@@ -13,7 +13,8 @@ mod unmake_move_tests {
             start_pos: Square::E2,
             end_pos: Square::E4,
             piece: Piece::Pawn,
-            move_type: MoveType::Regular(Capture(None)),
+            move_type: MoveType::Regular,
+            capture: None,
         };
         assert!(result.contains(&pawn_move));
         board.make_move(&pawn_move);
@@ -32,7 +33,8 @@ mod unmake_move_tests {
             start_pos: Square::F1,
             end_pos: Square::B5,
             piece: Piece::Bishop,
-            move_type: MoveType::Regular(Capture(Some(Piece::Pawn))),
+            move_type: MoveType::Regular,
+            capture: Some(Piece::Pawn),
         };
         assert!(result.contains(&bishop_move));
 
@@ -53,7 +55,8 @@ mod unmake_move_tests {
             start_pos: Square::C6,
             end_pos: Square::D4,
             piece: Piece::Knight,
-            move_type: MoveType::Regular(Capture(Some(Piece::Pawn))),
+            move_type: MoveType::Regular,
+            capture: Some(Piece::Pawn),
         };
         assert!(result.contains(&knight_move));
 
@@ -77,6 +80,7 @@ mod unmake_move_tests {
             end_pos: Square::C1,
             piece: Piece::King,
             move_type: MoveType::Castling,
+            capture: None,
         };
 
         assert!(w_moves.contains(w_queen_castling));
@@ -101,6 +105,7 @@ mod unmake_move_tests {
             end_pos: Square::C8,
             piece: Piece::King,
             move_type: MoveType::Castling,
+            capture: None,
         };
 
         assert!(b_moves.contains(b_queen_castling));
@@ -125,6 +130,7 @@ mod unmake_move_tests {
             end_pos: Square::G1,
             piece: Piece::King,
             move_type: MoveType::Castling,
+            capture: None,
         };
 
         assert!(w_moves.contains(w_king_castling));
@@ -149,6 +155,7 @@ mod unmake_move_tests {
             end_pos: Square::G8,
             piece: Piece::King,
             move_type: MoveType::Castling,
+            capture: None,
         };
 
         assert!(b_moves.contains(b_king_castling));
@@ -172,6 +179,7 @@ mod unmake_move_tests {
             end_pos: Square::E6,
             piece: Piece::Pawn,
             move_type: MoveType::EnPassant,
+            capture: Some(Piece::Pawn),
         };
 
         assert!(w_moves.contains(ep_move));
@@ -195,6 +203,7 @@ mod unmake_move_tests {
             end_pos: Square::E3,
             piece: Piece::Pawn,
             move_type: MoveType::EnPassant,
+            capture: Some(Piece::Pawn),
         };
 
         assert!(b_moves.contains(ep_move));
@@ -216,7 +225,8 @@ mod unmake_move_tests {
             start_pos: Square::A7,
             end_pos: Square::A8,
             piece: Piece::Pawn,
-            move_type: MoveType::QueenPromotion(Capture(None)),
+            move_type: MoveType::QueenPromotion,
+            capture: None,
         };
         assert!(moves.contains(w_promotion_move));
 
@@ -236,7 +246,8 @@ mod unmake_move_tests {
             start_pos: Square::C2,
             end_pos: Square::C1,
             piece: Piece::Pawn,
-            move_type: MoveType::QueenPromotion(Capture(None)),
+            move_type: MoveType::QueenPromotion,
+            capture: None,
         };
         assert!(moves.contains(b_promotion_move));
 
@@ -256,7 +267,8 @@ mod unmake_move_tests {
             start_pos: Square::C7,
             end_pos: Square::B8,
             piece: Piece::Pawn,
-            move_type: MoveType::QueenPromotion(Capture(Some(Piece::Knight))),
+            move_type: MoveType::QueenPromotion,
+            capture: Some(Piece::Knight),
         };
         assert!(moves.contains(w_promotion_capture_move));
 
@@ -276,7 +288,8 @@ mod unmake_move_tests {
             start_pos: Square::G2,
             end_pos: Square::H1,
             piece: Piece::Pawn,
-            move_type: MoveType::QueenPromotion(Capture(Some(Piece::Queen))),
+            move_type: MoveType::QueenPromotion,
+            capture: Some(Piece::Queen),
         };
 
         assert!(moves.contains(b_promotion_capture_move));

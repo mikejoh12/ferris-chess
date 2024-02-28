@@ -34,20 +34,18 @@ pub struct MoveData {
     pub end_pos: usize,
     pub piece: Piece,
     pub move_type: MoveType,
+    pub capture: Option<Piece>
 }
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct Capture(pub Option<Piece>);
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum MoveType {
-    Regular(Capture),
+    Regular,
     Castling,
     EnPassant,
-    QueenPromotion(Capture),
-    RookPromotion(Capture),
-    BishopPromotion(Capture),
-    KnightPromotion(Capture),
+    QueenPromotion,
+    RookPromotion,
+    BishopPromotion,
+    KnightPromotion,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -86,37 +84,63 @@ impl MoveData {
 
         let piece = board.data[start_pos].unwrap().1;
 
-        let move_type: MoveType = match piece {
-            Piece::Pawn => 'pawns: {
-                let cap = match board.data[end_pos] {
-                    Some(p) => Capture(Some(p.1)),
-                    None => Capture(None),
+        let move_data = match piece {
+            Piece::Pawn => {
+                let capture = match board.data[end_pos] {
+                    Some(p) => Some(p.1),
+                    None => None,
                 };
 
                 if uci_move.len() == 5 {
-                    match &uci_move[4..5] {
-                        "q" => break 'pawns MoveType::QueenPromotion(cap),
-                        "r" => break 'pawns MoveType::RookPromotion(cap),
-                        "b" => break 'pawns MoveType::BishopPromotion(cap),
-                        "n" => break 'pawns MoveType::KnightPromotion(cap),
+                    let move_type = match &uci_move[4..5] {
+                        "q" => MoveType::QueenPromotion,
+                        "r" => MoveType::RookPromotion,
+                        "b" => MoveType::BishopPromotion,
+                        "n" => MoveType::KnightPromotion,
                         _ => panic!("UCI move string invalid for promotion move"),
+                    };
+                    return MoveData {
+                        start_pos,
+                        end_pos,
+                        piece,
+                        move_type,
+                        capture
                     }
                 }
 
                 if let Some(ep) = board.ep_target {
                     if ep == end_pos {
-                        break 'pawns MoveType::EnPassant;
+                        return MoveData {
+                            start_pos,
+                            end_pos,
+                            piece,
+                            move_type: MoveType::EnPassant,
+                            capture: Some(Piece::Pawn)
+                        }
                     }
                 };
 
-                MoveType::Regular(cap)
+                MoveData {
+                    start_pos,
+                    end_pos,
+                    piece,
+                    move_type: MoveType::Regular,
+                    capture,
+                }
             }
 
             Piece::Rook | Piece::Knight | Piece::Bishop | Piece::Queen => {
-                if let Some(c) = board.data[end_pos] {
-                    MoveType::Regular(Capture(Some(c.1)))
-                } else {
-                    MoveType::Regular(Capture(None))
+                let capture = match board.data[end_pos] {
+                    Some(p) => Some(p.1),
+                    None => None,
+                };
+
+                MoveData {
+                    start_pos,
+                    end_pos,
+                    piece,
+                    move_type: MoveType::Regular,
+                    capture,
                 }
             }
 
@@ -124,23 +148,33 @@ impl MoveData {
                 (Square::E1, Square::C1)
                 | (Square::E1, Square::G1)
                 | (Square::E8, Square::C8)
-                | (Square::E8, Square::G8) => MoveType::Castling,
+                | (Square::E8, Square::G8) => {
+                    MoveData {
+                        start_pos,
+                        end_pos,
+                        piece,
+                        move_type: MoveType::Castling,
+                        capture: None,
+                    }
+                },
                 _ => {
-                    if let Some(c) = board.data[end_pos] {
-                        MoveType::Regular(Capture(Some(c.1)))
-                    } else {
-                        MoveType::Regular(Capture(None))
+                    let capture = match board.data[end_pos] {
+                        Some(p) => Some(p.1),
+                        None => None,
+                    };
+    
+                    MoveData {
+                        start_pos,
+                        end_pos,
+                        piece,
+                        move_type: MoveType::Regular,
+                        capture,
                     }
                 }
             },
         };
 
-        MoveData {
-            start_pos,
-            end_pos,
-            piece,
-            move_type,
-        }
+        move_data
     }
 
     pub fn to_uci_move(&self, board: &Board) -> String {
@@ -150,10 +184,10 @@ impl MoveData {
             board.get_square_from_idx(self.end_pos)
         );
         match self.move_type {
-            MoveType::QueenPromotion(_) => uci_move.push('q'),
-            MoveType::RookPromotion(_) => uci_move.push('r'),
-            MoveType::BishopPromotion(_) => uci_move.push('b'),
-            MoveType::KnightPromotion(_) => uci_move.push('n'),
+            MoveType::QueenPromotion => uci_move.push('q'),
+            MoveType::RookPromotion => uci_move.push('r'),
+            MoveType::BishopPromotion => uci_move.push('b'),
+            MoveType::KnightPromotion => uci_move.push('n'),
             _ => (),
         }
         uci_move
@@ -484,15 +518,15 @@ impl Board {
 
         if let Some(piece) = self.data[instr.start_pos] {
             match instr.move_type {
-                MoveType::Regular(cap) => {
+                MoveType::Regular => {
                     self.data[instr.end_pos] = Some(piece);
                     self.data[instr.start_pos] = None;
 
-                    self.update_pieces(instr.start_pos, instr.end_pos, &cap);
+                    self.update_pieces(instr);
 
                     // Reset half move clock on pawn move or capture
                     // Increment it otherwise
-                    if piece.1 == Piece::Pawn || cap != Capture(None) {
+                    if piece.1 == Piece::Pawn || instr.capture != None {
                         self.half_moves = 0;
                     } else {
                         self.half_moves += 1;
@@ -510,7 +544,7 @@ impl Board {
                     self.data[instr.start_pos] = None;
 
                     // Update king position in piece list
-                    self.update_pieces(instr.start_pos, instr.end_pos, &Capture(None));
+                    self.update_pieces(instr);
 
                     // Increment half move clock
                     self.half_moves += 1;
@@ -554,7 +588,7 @@ impl Board {
                     self.data[instr.start_pos] = None;
 
                     // No capture on the end_pos square during ep
-                    self.update_pieces(instr.start_pos, instr.end_pos, &Capture(None));
+                    self.update_pieces(instr);
 
                     // Handle en passant capture
                     if self.is_white_to_move {
@@ -568,29 +602,29 @@ impl Board {
                 }
 
                 // Reset half move clock for the 4 pawn promotions
-                MoveType::QueenPromotion(cap) => {
+                MoveType::QueenPromotion => {
                     self.data[instr.end_pos] = Some((piece.0, Piece::Queen));
                     self.data[instr.start_pos] = None;
                     self.half_moves = 0;
-                    self.update_pieces(instr.start_pos, instr.end_pos, &cap);
+                    self.update_pieces(instr);
                 }
-                MoveType::RookPromotion(cap) => {
+                MoveType::RookPromotion => {
                     self.data[instr.end_pos] = Some((piece.0, Piece::Rook));
                     self.data[instr.start_pos] = None;
                     self.half_moves = 0;
-                    self.update_pieces(instr.start_pos, instr.end_pos, &cap);
+                    self.update_pieces(instr);
                 }
-                MoveType::BishopPromotion(cap) => {
+                MoveType::BishopPromotion => {
                     self.data[instr.end_pos] = Some((piece.0, Piece::Bishop));
                     self.data[instr.start_pos] = None;
                     self.half_moves = 0;
-                    self.update_pieces(instr.start_pos, instr.end_pos, &cap);
+                    self.update_pieces(instr);
                 }
-                MoveType::KnightPromotion(cap) => {
+                MoveType::KnightPromotion => {
                     self.data[instr.end_pos] = Some((piece.0, Piece::Knight));
                     self.data[instr.start_pos] = None;
                     self.half_moves = 0;
-                    self.update_pieces(instr.start_pos, instr.end_pos, &cap);
+                    self.update_pieces(instr);
                 }
             };
         } else {
@@ -640,39 +674,39 @@ impl Board {
         self.is_white_to_move = !self.is_white_to_move;
     }
 
-    fn update_pieces(&mut self, from: usize, to: usize, capture: &Capture) {
+    fn update_pieces(&mut self, move_data: &MoveData) {
         match self.is_white_to_move {
             true => {
-                self.pieces_w.insert(to);
-                self.pieces_w.remove(&from);
-                if *capture != Capture(None) {
-                    self.pieces_b.remove(&to);
+                self.pieces_w.insert(move_data.end_pos);
+                self.pieces_w.remove(&move_data.start_pos);
+                if move_data.capture != None {
+                    self.pieces_b.remove(&move_data.end_pos);
                 }
             }
             false => {
-                self.pieces_b.insert(to);
-                self.pieces_b.remove(&from);
-                if *capture != Capture(None) {
-                    self.pieces_w.remove(&to);
+                self.pieces_b.insert(move_data.end_pos);
+                self.pieces_b.remove(&move_data.start_pos);
+                if move_data.capture != None {
+                    self.pieces_w.remove(&move_data.end_pos);
                 }
             }
         }
     }
 
-    fn unmake_update_pieces(&mut self, from: usize, to: usize, capture: &Capture) {
+    fn unmake_update_pieces(&mut self, move_data: &MoveData) {
         match self.is_white_to_move {
             true => {
-                self.pieces_w.insert(from);
-                self.pieces_w.remove(&to);
-                if *capture != Capture(None) {
-                    self.pieces_b.insert(to);
+                self.pieces_w.insert(move_data.start_pos);
+                self.pieces_w.remove(&move_data.end_pos);
+                if move_data.capture != None {
+                    self.pieces_b.insert(move_data.end_pos);
                 }
             }
             false => {
-                self.pieces_b.insert(from);
-                self.pieces_b.remove(&to);
-                if *capture != Capture(None) {
-                    self.pieces_w.insert(to);
+                self.pieces_b.insert(move_data.start_pos);
+                self.pieces_b.remove(&move_data.end_pos);
+                if move_data.capture != None {
+                    self.pieces_w.insert(move_data.end_pos);
                 }
             }
         }
@@ -708,15 +742,15 @@ impl Board {
             }
 
             match last_move.move_type {
-                MoveType::Regular(cap) => {
+                MoveType::Regular => {
                     self.data[last_move.start_pos] = Some((color_to_move, last_move.piece));
-                    if let Some(p) = cap.0 {
-                        self.data[last_move.end_pos] = Some((opponent_color, p));
+                    if last_move.capture != None {
+                        self.data[last_move.end_pos] = Some((opponent_color, last_move.capture.unwrap()));
                     } else {
                         self.data[last_move.end_pos] = None;
                     }
 
-                    self.unmake_update_pieces(last_move.start_pos, last_move.end_pos, &cap);
+                    self.unmake_update_pieces(last_move);
 
                     // Update king pos
                     if last_move.piece == Piece::King && self.is_white_to_move {
@@ -727,11 +761,7 @@ impl Board {
                 }
                 MoveType::Castling => {
                     // Undo the king position
-                    self.unmake_update_pieces(
-                        last_move.start_pos,
-                        last_move.end_pos,
-                        &Capture(None),
-                    );
+                    self.unmake_update_pieces(last_move);
 
                     match (last_move.start_pos, last_move.end_pos) {
                         (Square::E1, Square::C1) => {
@@ -778,36 +808,36 @@ impl Board {
                     self.data[last_move.end_pos] = None;
 
                     // Handle captured ep piece separately since it's in a different square
-                    self.unmake_update_pieces(
-                        last_move.start_pos,
-                        last_move.end_pos,
-                        &Capture(None),
-                    );
-
-                    // Replace en passant captured piece
-                    if self.is_white_to_move {
-                        self.data[last_move.end_pos - 8] = Some((Color::Black, Piece::Pawn));
-                        self.pieces_b.insert(last_move.end_pos - 8);
-                    } else {
-                        self.data[last_move.end_pos + 8] = Some((Color::White, Piece::Pawn));
-                        self.pieces_w.insert(last_move.end_pos + 8);
+                    match self.is_white_to_move {
+                        true => {
+                            self.pieces_w.insert(last_move.start_pos);
+                            self.pieces_w.remove(&last_move.end_pos);
+                            self.data[last_move.end_pos - 8] = Some((Color::Black, Piece::Pawn));
+                            self.pieces_b.insert(last_move.end_pos - 8);
+                        }
+                        false => {
+                            self.pieces_b.insert(last_move.start_pos);
+                            self.pieces_b.remove(&last_move.end_pos);
+                            self.data[last_move.end_pos + 8] = Some((Color::White, Piece::Pawn));
+                            self.pieces_w.insert(last_move.end_pos + 8);
+                        }
                     }
                 }
-                MoveType::QueenPromotion(cap) => {
-                    self.unmake_promotion_move(last_move, &cap);
-                    self.unmake_update_pieces(last_move.start_pos, last_move.end_pos, &cap);
+                MoveType::QueenPromotion => {
+                    self.unmake_promotion_move(last_move);
+                    self.unmake_update_pieces(last_move);
                 }
-                MoveType::RookPromotion(cap) => {
-                    self.unmake_promotion_move(last_move, &cap);
-                    self.unmake_update_pieces(last_move.start_pos, last_move.end_pos, &cap);
+                MoveType::RookPromotion => {
+                    self.unmake_promotion_move(last_move);
+                    self.unmake_update_pieces(last_move);
                 }
-                MoveType::BishopPromotion(cap) => {
-                    self.unmake_promotion_move(last_move, &cap);
-                    self.unmake_update_pieces(last_move.start_pos, last_move.end_pos, &cap);
+                MoveType::BishopPromotion => {
+                    self.unmake_promotion_move(last_move);
+                    self.unmake_update_pieces(last_move);
                 }
-                MoveType::KnightPromotion(cap) => {
-                    self.unmake_promotion_move(last_move, &cap);
-                    self.unmake_update_pieces(last_move.start_pos, last_move.end_pos, &cap);
+                MoveType::KnightPromotion => {
+                    self.unmake_promotion_move(last_move);
+                    self.unmake_update_pieces(last_move);
                 }
             }
         } else {
@@ -815,7 +845,7 @@ impl Board {
         }
     }
 
-    fn unmake_promotion_move(&mut self, last_move: &MoveData, cap: &Capture) {
+    fn unmake_promotion_move(&mut self, last_move: &MoveData) {
         let color_to_move = match self.is_white_to_move {
             true => Color::White,
             false => Color::Black,
@@ -826,8 +856,8 @@ impl Board {
         };
 
         self.data[last_move.start_pos] = Some((color_to_move, Piece::Pawn));
-        if let Some(p) = cap.0 {
-            self.data[last_move.end_pos] = Some((opponent_color, p));
+        if last_move.capture != None {
+            self.data[last_move.end_pos] = Some((opponent_color, last_move.capture.unwrap()));
         } else {
             self.data[last_move.end_pos] = None;
         }
@@ -844,25 +874,26 @@ impl Board {
         &self,
         start_pos: usize,
         end_pos: usize,
-        capture: Capture,
+        capture: Option<Piece>,
         moves: &mut Vec<MoveData>,
     ) {
         let queen_promotion = MoveData {
             start_pos,
             end_pos,
             piece: Piece::Pawn,
-            move_type: MoveType::QueenPromotion(capture),
+            move_type: MoveType::QueenPromotion,
+            capture,
         };
         let rook_promotion = MoveData {
-            move_type: MoveType::RookPromotion(capture),
+            move_type: MoveType::RookPromotion,
             ..queen_promotion
         };
         let bishop_promotion = MoveData {
-            move_type: MoveType::BishopPromotion(capture),
+            move_type: MoveType::BishopPromotion,
             ..queen_promotion
         };
         let knight_promotion = MoveData {
-            move_type: MoveType::KnightPromotion(capture),
+            move_type: MoveType::KnightPromotion,
             ..queen_promotion
         };
         moves.push(queen_promotion);
@@ -878,7 +909,8 @@ impl Board {
                 start_pos: pos,
                 end_pos: pos + 8,
                 piece: Piece::Pawn,
-                move_type: MoveType::Regular(Capture(None)),
+                move_type: MoveType::Regular,
+                capture: None,
             });
         }
         if pos <= Square::H2 && self.is_unoccupied(pos + 8) && self.is_unoccupied(pos + 16) {
@@ -886,13 +918,14 @@ impl Board {
                 start_pos: pos,
                 end_pos: pos + 16,
                 piece: Piece::Pawn,
-                move_type: MoveType::Regular(Capture(None)),
+                move_type: MoveType::Regular,
+                capture: None,
             });
         }
 
         // Pawn promotion without capture
         if pos >= Square::A7 && self.is_unoccupied(pos + 8) {
-            self.add_promotion_moves(pos, pos + 8, Capture(None), &mut moves);
+            self.add_promotion_moves(pos, pos + 8, None, &mut moves);
         }
 
         // Pawn captures
@@ -914,9 +947,8 @@ impl Board {
                         start_pos: pos,
                         end_pos: left_capture_pos,
                         piece: Piece::Pawn,
-                        move_type: MoveType::Regular(Capture(Some(
-                            self.data[left_capture_pos].unwrap().1,
-                        ))),
+                        move_type: MoveType::Regular,
+                        capture: Some(self.data[left_capture_pos].unwrap().1)
                     });
                 }
             } else if capture_rank_idx == 7 {
@@ -927,7 +959,7 @@ impl Board {
                     self.add_promotion_moves(
                         pos,
                         left_capture_pos,
-                        Capture(Some(self.data[left_capture_pos].unwrap().1)),
+                        Some(self.data[left_capture_pos].unwrap().1),
                         &mut moves,
                     );
                 }
@@ -941,6 +973,7 @@ impl Board {
                         end_pos: left_capture_pos,
                         piece: Piece::Pawn,
                         move_type: MoveType::EnPassant,
+                        capture: Some(Piece::Pawn),
                     });
                 }
             }
@@ -960,9 +993,8 @@ impl Board {
                         start_pos: pos,
                         end_pos: right_capture_pos,
                         piece: Piece::Pawn,
-                        move_type: MoveType::Regular(Capture(Some(
-                            self.data[right_capture_pos].unwrap().1,
-                        ))),
+                        move_type: MoveType::Regular,
+                        capture: Some(self.data[right_capture_pos].unwrap().1),
                     });
                 }
             } else if capture_rank_idx == 7 {
@@ -973,7 +1005,7 @@ impl Board {
                     self.add_promotion_moves(
                         pos,
                         right_capture_pos,
-                        Capture(Some(self.data[right_capture_pos].unwrap().1)),
+                        Some(self.data[right_capture_pos].unwrap().1),
                         &mut moves,
                     );
                 }
@@ -986,6 +1018,7 @@ impl Board {
                         end_pos: right_capture_pos,
                         piece: Piece::Pawn,
                         move_type: MoveType::EnPassant,
+                        capture: Some(Piece::Pawn),
                     });
                 }
             }
@@ -1001,7 +1034,8 @@ impl Board {
                 start_pos: pos,
                 end_pos: pos - 8,
                 piece: Piece::Pawn,
-                move_type: MoveType::Regular(Capture(None)),
+                move_type: MoveType::Regular,
+                capture: None,
             });
         }
         if pos >= 48 && self.is_unoccupied(pos - 8) && self.is_unoccupied(pos - 16) {
@@ -1009,13 +1043,14 @@ impl Board {
                 start_pos: pos,
                 end_pos: pos - 16,
                 piece: Piece::Pawn,
-                move_type: MoveType::Regular(Capture(None)),
+                move_type: MoveType::Regular,
+                capture: None,
             });
         }
 
         // Pawn promotion without capture
         if pos <= Square::H2 && self.is_unoccupied(pos - 8) {
-            self.add_promotion_moves(pos, pos - 8, Capture(None), &mut moves);
+            self.add_promotion_moves(pos, pos - 8, None, &mut moves);
         }
 
         // Pawn captures
@@ -1037,9 +1072,8 @@ impl Board {
                         start_pos: pos,
                         end_pos: left_capture_pos,
                         piece: Piece::Pawn,
-                        move_type: MoveType::Regular(Capture(Some(
-                            self.data[left_capture_pos].unwrap().1,
-                        ))),
+                        move_type: MoveType::Regular,
+                        capture: Some(self.data[left_capture_pos].unwrap().1)
                     });
                 }
             } else if capture_rank_idx == 0 {
@@ -1050,7 +1084,7 @@ impl Board {
                     self.add_promotion_moves(
                         pos,
                         left_capture_pos,
-                        Capture(Some(self.data[left_capture_pos].unwrap().1)),
+                        Some(self.data[left_capture_pos].unwrap().1),
                         &mut moves,
                     );
                 }
@@ -1064,6 +1098,7 @@ impl Board {
                         end_pos: left_capture_pos,
                         piece: Piece::Pawn,
                         move_type: MoveType::EnPassant,
+                        capture: Some(Piece::Pawn),
                     });
                 }
             }
@@ -1084,9 +1119,10 @@ impl Board {
                         start_pos: pos,
                         end_pos: right_capture_pos,
                         piece: Piece::Pawn,
-                        move_type: MoveType::Regular(Capture(Some(
+                        move_type: MoveType::Regular,
+                        capture: Some(
                             self.data[right_capture_pos].unwrap().1,
-                        ))),
+                        )
                     });
                 }
             } else if capture_rank_idx == 0 {
@@ -1097,7 +1133,7 @@ impl Board {
                     self.add_promotion_moves(
                         pos,
                         right_capture_pos,
-                        Capture(Some(self.data[right_capture_pos].unwrap().1)),
+                        Some(self.data[right_capture_pos].unwrap().1),
                         &mut moves,
                     );
                 }
@@ -1111,6 +1147,7 @@ impl Board {
                         end_pos: right_capture_pos,
                         piece: Piece::Pawn,
                         move_type: MoveType::EnPassant,
+                        capture: Some(Piece::Pawn),
                     });
                 }
             }
@@ -1132,9 +1169,8 @@ impl Board {
                             start_pos: pos,
                             end_pos: *ray_pos,
                             piece: Piece::Rook,
-                            move_type: MoveType::Regular(Capture(Some(
-                                self.data[*ray_pos].unwrap().1,
-                            ))),
+                            move_type: MoveType::Regular,
+                            capture: Some(self.data[*ray_pos].unwrap().1,)
                         });
                         break;
                     }
@@ -1142,7 +1178,8 @@ impl Board {
                         start_pos: pos,
                         end_pos: *ray_pos,
                         piece: Piece::Rook,
-                        move_type: MoveType::Regular(Capture(None)),
+                        move_type: MoveType::Regular,
+                        capture: None
                     }),
                 }
             }
@@ -1161,13 +1198,15 @@ impl Board {
                     start_pos: pos,
                     end_pos: *target,
                     piece: Piece::Knight,
-                    move_type: MoveType::Regular(Capture(Some(self.data[*target].unwrap().1))),
+                    move_type: MoveType::Regular,
+                    capture: Some(self.data[*target].unwrap().1)
                 }),
                 OccupiedStatus::Unoccupied => new_positions.push(MoveData {
                     start_pos: pos,
                     end_pos: *target,
                     piece: Piece::Knight,
-                    move_type: MoveType::Regular(Capture(None)),
+                    move_type: MoveType::Regular,
+                    capture: None,
                 }),
             }
         }
@@ -1187,9 +1226,9 @@ impl Board {
                             start_pos: pos,
                             end_pos: *ray_pos,
                             piece: Piece::Bishop,
-                            move_type: MoveType::Regular(Capture(Some(
-                                self.data[*ray_pos].unwrap().1,
-                            ))),
+                            move_type: MoveType::Regular,
+                            capture: Some(
+                                self.data[*ray_pos].unwrap().1)
                         });
                         break;
                     }
@@ -1197,7 +1236,8 @@ impl Board {
                         start_pos: pos,
                         end_pos: *ray_pos,
                         piece: Piece::Bishop,
-                        move_type: MoveType::Regular(Capture(None)),
+                        move_type: MoveType::Regular,
+                        capture: None,
                     }),
                 }
             }
@@ -1226,15 +1266,16 @@ impl Board {
                     start_pos: pos,
                     end_pos: *neighbor_pos,
                     piece: Piece::King,
-                    move_type: MoveType::Regular(Capture(Some(
-                        self.data[*neighbor_pos].unwrap().1,
-                    ))),
+                    move_type: MoveType::Regular,
+                    capture: Some(
+                        self.data[*neighbor_pos].unwrap().1)
                 }),
                 OccupiedStatus::Unoccupied => new_positions.push(MoveData {
                     start_pos: pos,
                     end_pos: *neighbor_pos,
                     piece: Piece::King,
-                    move_type: MoveType::Regular(Capture(None)),
+                    move_type: MoveType::Regular,
+                    capture: None,
                 }),
             }
         }
@@ -1257,6 +1298,7 @@ impl Board {
                         end_pos: 2,
                         piece: Piece::King,
                         move_type: MoveType::Castling,
+                        capture: None
                     })
                 }
             }
@@ -1271,6 +1313,7 @@ impl Board {
                         end_pos: 6,
                         piece: Piece::King,
                         move_type: MoveType::Castling,
+                        capture: None
                     })
                 }
             }
@@ -1286,6 +1329,7 @@ impl Board {
                         end_pos: 58,
                         piece: Piece::King,
                         move_type: MoveType::Castling,
+                        capture: None,
                     })
                 }
             }
@@ -1300,6 +1344,7 @@ impl Board {
                         end_pos: 62,
                         piece: Piece::King,
                         move_type: MoveType::Castling,
+                        capture: None,
                     })
                 }
             }
