@@ -131,7 +131,7 @@ impl Uci {
 
         match &mut self.board {
             Some(board) => {
-                let m = self.engine.root_alpha_beta(board, 6);
+                let m = self.engine.iter_deepening(board, 6);
 
                 let uci_move = m.unwrap().to_uci_move(board);
                 println!("bestmove {}", uci_move);

@@ -1,4 +1,5 @@
 use ferris_chess_board::{Board, Capture, Color, MoveData, MoveType, Piece};
+use std::time::{Duration, Instant};
 
 #[allow(dead_code)]
 pub struct Engine {
@@ -27,6 +28,8 @@ pub struct Engine {
     eg_queen_table_w: [i32; 64],
     mg_king_table_w: [i32; 64],
     eg_king_table_w: [i32; 64],
+
+    best_move: Option<MoveData>,
 }
 
 fn mg_piece_weight(piece: Piece) -> i32 {
@@ -255,7 +258,25 @@ impl Engine {
             eg_queen_table_b,
             mg_king_table_b,
             eg_king_table_b,
+            best_move: None,
         }
+    }
+
+    pub fn iter_deepening(&mut self, board: &mut Board, max_depth: usize) -> Option<MoveData> {
+        let start = Instant::now();
+
+        for depth in 1..=max_depth {
+            let m = self.root_alpha_beta(board, depth);
+            self.best_move = m.clone();
+
+            println!("info depth {}", depth);
+
+            if start.elapsed() >= Duration::from_secs(60) {
+                return self.best_move.clone();
+            }
+        }
+
+        self.best_move.clone()
     }
 
     pub fn root_alpha_beta(&mut self, board: &mut Board, depth: usize) -> Option<MoveData> {
@@ -263,7 +284,13 @@ impl Engine {
         let beta = i32::MAX - 1;
         let mut best_move: Option<MoveData> = None;
 
-        for m in board.get_pseudo_legal_moves() {
+        let mut moves = board.get_pseudo_legal_moves();
+
+        if let Some(m) = &self.best_move {
+            moves.sort_unstable_by_key(|x| if x == m { 0 } else { 1 })
+        }
+
+        for m in &moves {
             board.make_move(&m);
             if !board.is_king_left_in_check() {
                 let score = -self.alpha_beta(board, depth - 1, -beta, -alpha);
@@ -274,8 +301,6 @@ impl Engine {
                 }
             }
             board.unmake_move(&m);
-
-
         }
         best_move
     }
@@ -342,12 +367,12 @@ impl Engine {
 
         for m in moves {
             match m.move_type {
-                MoveType::Regular(Capture(Some(_))) |
-                MoveType::EnPassant |
-                MoveType::QueenPromotion(Capture(Some(_))) |
-                MoveType::RookPromotion(Capture(Some(_))) |
-                MoveType::BishopPromotion(Capture(Some(_))) |
-                MoveType::KnightPromotion(Capture(Some(_))) => {
+                MoveType::Regular(Capture(Some(_)))
+                | MoveType::EnPassant
+                | MoveType::QueenPromotion(Capture(Some(_)))
+                | MoveType::RookPromotion(Capture(Some(_)))
+                | MoveType::BishopPromotion(Capture(Some(_)))
+                | MoveType::KnightPromotion(Capture(Some(_))) => {
                     board.make_move(&m);
                     let score = -self.quiesce(board, -beta, -alpha);
                     board.unmake_move(&m);
@@ -357,7 +382,7 @@ impl Engine {
                     if score > alpha {
                         alpha = score;
                     }
-                },
+                }
                 _ => (),
             }
         }

@@ -370,7 +370,6 @@ impl Board {
     }
 
     fn is_position_threatened(&self, pos: usize, opponent_color: Color) -> bool {
-
         // Rook and queen threat
         for ray in &self.cache.rook_rays[pos] {
             for ray_pos in ray {
@@ -1249,7 +1248,9 @@ impl Board {
             if self.castling_w_000 {
                 if self.data[Square::A1] == Some((Color::White, Piece::Rook))
                     && [1, 2, 3].iter().all(|s| self.data[*s] == None)
-                    && [2, 3, 4].iter().all(|s| !self.is_position_threatened(*s, Color::Black))
+                    && [2, 3, 4]
+                        .iter()
+                        .all(|s| !self.is_position_threatened(*s, Color::Black))
                 {
                     moves.push(MoveData {
                         start_pos: 4,
@@ -1261,7 +1262,9 @@ impl Board {
             }
             if self.data[Square::H1] == Some((Color::White, Piece::Rook)) && self.castling_w_00 {
                 if [5, 6].iter().all(|s| self.data[*s] == None)
-                    && [4, 5, 6].iter().all(|s| !self.is_position_threatened(*s, Color::Black))
+                    && [4, 5, 6]
+                        .iter()
+                        .all(|s| !self.is_position_threatened(*s, Color::Black))
                 {
                     moves.push(MoveData {
                         start_pos: 4,
@@ -1338,7 +1341,8 @@ impl Board {
         let king_pos = match self.is_white_to_move {
             true => self.king_pos_w,
             false => self.king_pos_b,
-        }.expect("King position missing on board");
+        }
+        .expect("King position missing on board");
 
         let opponent_color = match self.is_white_to_move {
             true => Color::Black,
@@ -1346,7 +1350,7 @@ impl Board {
         };
         self.is_position_threatened(king_pos, opponent_color)
     }
-    
+
     pub fn is_king_left_in_check(&self) -> bool {
         let king_pos = match self.is_white_to_move {
             true => self.king_pos_b,
@@ -1358,6 +1362,6 @@ impl Board {
             true => Color::White,
             false => Color::Black,
         };
-        self.is_position_threatened(king_pos, threat_color)    
+        self.is_position_threatened(king_pos, threat_color)
     }
 }

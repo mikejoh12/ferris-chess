@@ -14,7 +14,6 @@ pub fn perft(depth: u8, board: &mut Board) -> usize {
             nodes += perft(depth - 1, board);
         }
         board.unmake_move(&m);
-
     }
 
     nodes
