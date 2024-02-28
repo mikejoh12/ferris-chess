@@ -322,8 +322,8 @@ impl Engine {
         beta: i32,
     ) -> i32 {
         if depth == 0 {
-            //return self.quiesce(board, alpha, beta);
-            return self.static_eval(board);
+            return self.quiesce(board, 4, alpha, beta);
+            //return self.static_eval(board);
         }
 
         let mut moves = board.get_pseudo_legal_moves();
@@ -362,7 +362,7 @@ impl Engine {
     }
 
     #[allow(dead_code)]
-    fn quiesce(&self, board: &mut Board, mut alpha: i32, beta: i32) -> i32 {
+    fn quiesce(&self, board: &mut Board, depth: usize, mut alpha: i32, beta: i32) -> i32 {
         let stand_pat = self.static_eval(board);
 
         if stand_pat >= beta {
@@ -372,13 +372,25 @@ impl Engine {
             alpha = stand_pat;
         }
 
-        let moves = board.get_pseudo_legal_moves();
+        if depth == 0 {
+            return alpha;
+        }
+
+        let mut moves = board.get_pseudo_legal_moves();
+
+        // Add basic sorting of captures
+        moves.sort_unstable_by_key(|x| {
+            if let Some(cap) = x.capture {
+                return x.piece as i32 - cap as i32;
+            }
+            10000
+        });
 
         for m in moves {
-            match m.capture {
-                Some(_) => {
+            if let Some(cap) = m.capture {
+                if cap as i32 > m.piece as i32 - 200 {
                     board.make_move(&m);
-                    let score = -self.quiesce(board, -beta, -alpha);
+                    let score = -self.quiesce(board, depth - 1, -beta, -alpha);
                     board.unmake_move(&m);
                     if score >= beta {
                         return beta;
@@ -387,7 +399,6 @@ impl Engine {
                         alpha = score;
                     }
                 }
-                None => (),
             }
         }
         alpha

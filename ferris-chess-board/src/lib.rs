@@ -5,14 +5,16 @@ mod cache;
 pub mod perft;
 mod squares;
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Color {
     White,
     Black,
 }
 
+const EMPTY_BOARD_POS: Option<(Color, Piece)> = None;
+
 // Basic piece valuations used for move sorting
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Piece {
     Pawn = 100,
     Knight = 300,
@@ -59,7 +61,7 @@ struct IrreversibleBoardState {
     ep_target: Option<usize>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Board {
     cache: cache::Cache,
     pub is_white_to_move: bool,
@@ -196,7 +198,7 @@ impl MoveData {
 impl Board {
     // Starting pos: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
     pub fn from_fen(fen: &str) -> Self {
-        let mut data: [Option<(Color, Piece)>; 64] = [None; 64];
+        let mut data: [Option<(Color, Piece)>; 64] = [EMPTY_BOARD_POS; 64];
 
         let cache_builder = cache::Cache::builder();
         let cache = cache_builder.build();
@@ -1350,27 +1352,26 @@ impl Board {
     }
 
     pub fn get_pseudo_legal_moves(&mut self) -> Vec<MoveData> {
-        let mut moves: Vec<MoveData> = vec![];
+        let mut moves: Vec<MoveData> = Vec::with_capacity(50);
         let positions: &HashSet<usize> = match self.is_white_to_move {
             true => &self.pieces_w,
             false => &self.pieces_b,
         };
 
-        for pos in positions.clone() {
+        for pos in positions {
             let position_moves: Vec<MoveData> =
-                match (self.data[pos].unwrap().0, self.data[pos].unwrap().1) {
-                    (Color::White, Piece::Pawn) => self.get_white_pawn_moves(pos),
-                    (Color::Black, Piece::Pawn) => self.get_black_pawn_moves(pos),
-                    (_, Piece::Rook) => self.get_rook_moves(pos),
-                    (_, Piece::Knight) => self.get_knight_moves(pos),
-                    (_, Piece::Bishop) => self.get_bishop_moves(pos),
-                    (_, Piece::Queen) => self.get_queen_moves(pos),
-                    (_, Piece::King) => self.get_king_moves(pos),
+                match self.data[*pos] {
+                    Some((Color::White, Piece::Pawn)) => self.get_white_pawn_moves(*pos),
+                    Some((Color::Black, Piece::Pawn)) => self.get_black_pawn_moves(*pos),
+                    Some((_, Piece::Rook)) => self.get_rook_moves(*pos),
+                    Some((_, Piece::Knight)) => self.get_knight_moves(*pos),
+                    Some((_, Piece::Bishop)) => self.get_bishop_moves(*pos),
+                    Some((_, Piece::Queen)) => self.get_queen_moves(*pos),
+                    Some((_, Piece::King)) => self.get_king_moves(*pos),
+                    None => panic!("No piece on expected square")
                 };
 
-            for m in position_moves {
-                moves.push(m);
-            }
+            moves.extend_from_slice(&position_moves);
         }
 
         moves.extend(self.get_castling_moves());
