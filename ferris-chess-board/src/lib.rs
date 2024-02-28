@@ -11,14 +11,15 @@ pub enum Color {
     Black,
 }
 
+// Basic piece valuations used for move sorting
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Piece {
-    Pawn,
-    Knight,
-    Bishop,
-    Rook,
-    Queen,
-    King,
+    Pawn = 100,
+    Knight = 300,
+    Bishop = 310,
+    Rook = 500,
+    Queen = 900,
+    King = 10000,
 }
 
 #[derive(PartialEq)]
@@ -34,7 +35,7 @@ pub struct MoveData {
     pub end_pos: usize,
     pub piece: Piece,
     pub move_type: MoveType,
-    pub capture: Option<Piece>
+    pub capture: Option<Piece>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -104,8 +105,8 @@ impl MoveData {
                         end_pos,
                         piece,
                         move_type,
-                        capture
-                    }
+                        capture,
+                    };
                 }
 
                 if let Some(ep) = board.ep_target {
@@ -115,8 +116,8 @@ impl MoveData {
                             end_pos,
                             piece,
                             move_type: MoveType::EnPassant,
-                            capture: Some(Piece::Pawn)
-                        }
+                            capture: Some(Piece::Pawn),
+                        };
                     }
                 };
 
@@ -148,21 +149,19 @@ impl MoveData {
                 (Square::E1, Square::C1)
                 | (Square::E1, Square::G1)
                 | (Square::E8, Square::C8)
-                | (Square::E8, Square::G8) => {
-                    MoveData {
-                        start_pos,
-                        end_pos,
-                        piece,
-                        move_type: MoveType::Castling,
-                        capture: None,
-                    }
+                | (Square::E8, Square::G8) => MoveData {
+                    start_pos,
+                    end_pos,
+                    piece,
+                    move_type: MoveType::Castling,
+                    capture: None,
                 },
                 _ => {
                     let capture = match board.data[end_pos] {
                         Some(p) => Some(p.1),
                         None => None,
                     };
-    
+
                     MoveData {
                         start_pos,
                         end_pos,
@@ -745,7 +744,8 @@ impl Board {
                 MoveType::Regular => {
                     self.data[last_move.start_pos] = Some((color_to_move, last_move.piece));
                     if last_move.capture != None {
-                        self.data[last_move.end_pos] = Some((opponent_color, last_move.capture.unwrap()));
+                        self.data[last_move.end_pos] =
+                            Some((opponent_color, last_move.capture.unwrap()));
                     } else {
                         self.data[last_move.end_pos] = None;
                     }
@@ -948,7 +948,7 @@ impl Board {
                         end_pos: left_capture_pos,
                         piece: Piece::Pawn,
                         move_type: MoveType::Regular,
-                        capture: Some(self.data[left_capture_pos].unwrap().1)
+                        capture: Some(self.data[left_capture_pos].unwrap().1),
                     });
                 }
             } else if capture_rank_idx == 7 {
@@ -1073,7 +1073,7 @@ impl Board {
                         end_pos: left_capture_pos,
                         piece: Piece::Pawn,
                         move_type: MoveType::Regular,
-                        capture: Some(self.data[left_capture_pos].unwrap().1)
+                        capture: Some(self.data[left_capture_pos].unwrap().1),
                     });
                 }
             } else if capture_rank_idx == 0 {
@@ -1120,9 +1120,7 @@ impl Board {
                         end_pos: right_capture_pos,
                         piece: Piece::Pawn,
                         move_type: MoveType::Regular,
-                        capture: Some(
-                            self.data[right_capture_pos].unwrap().1,
-                        )
+                        capture: Some(self.data[right_capture_pos].unwrap().1),
                     });
                 }
             } else if capture_rank_idx == 0 {
@@ -1170,7 +1168,7 @@ impl Board {
                             end_pos: *ray_pos,
                             piece: Piece::Rook,
                             move_type: MoveType::Regular,
-                            capture: Some(self.data[*ray_pos].unwrap().1,)
+                            capture: Some(self.data[*ray_pos].unwrap().1),
                         });
                         break;
                     }
@@ -1179,7 +1177,7 @@ impl Board {
                         end_pos: *ray_pos,
                         piece: Piece::Rook,
                         move_type: MoveType::Regular,
-                        capture: None
+                        capture: None,
                     }),
                 }
             }
@@ -1199,7 +1197,7 @@ impl Board {
                     end_pos: *target,
                     piece: Piece::Knight,
                     move_type: MoveType::Regular,
-                    capture: Some(self.data[*target].unwrap().1)
+                    capture: Some(self.data[*target].unwrap().1),
                 }),
                 OccupiedStatus::Unoccupied => new_positions.push(MoveData {
                     start_pos: pos,
@@ -1227,8 +1225,7 @@ impl Board {
                             end_pos: *ray_pos,
                             piece: Piece::Bishop,
                             move_type: MoveType::Regular,
-                            capture: Some(
-                                self.data[*ray_pos].unwrap().1)
+                            capture: Some(self.data[*ray_pos].unwrap().1),
                         });
                         break;
                     }
@@ -1267,8 +1264,7 @@ impl Board {
                     end_pos: *neighbor_pos,
                     piece: Piece::King,
                     move_type: MoveType::Regular,
-                    capture: Some(
-                        self.data[*neighbor_pos].unwrap().1)
+                    capture: Some(self.data[*neighbor_pos].unwrap().1),
                 }),
                 OccupiedStatus::Unoccupied => new_positions.push(MoveData {
                     start_pos: pos,
@@ -1298,7 +1294,7 @@ impl Board {
                         end_pos: 2,
                         piece: Piece::King,
                         move_type: MoveType::Castling,
-                        capture: None
+                        capture: None,
                     })
                 }
             }
@@ -1313,7 +1309,7 @@ impl Board {
                         end_pos: 6,
                         piece: Piece::King,
                         move_type: MoveType::Castling,
-                        capture: None
+                        capture: None,
                     })
                 }
             }

@@ -1,4 +1,4 @@
-use ferris_chess_board::{Board, Color, MoveData, MoveType, Piece};
+use ferris_chess_board::{Board, Color, MoveData, Piece};
 use std::time::{Duration, Instant};
 
 #[allow(dead_code)]
@@ -286,8 +286,17 @@ impl Engine {
 
         let mut moves = board.get_pseudo_legal_moves();
 
+        
         if let Some(m) = &self.best_move {
-            moves.sort_unstable_by_key(|x| if x == m { 0 } else { 1 })
+            moves.sort_unstable_by_key(|x| {
+                if x == m {
+                    return -10000;
+                }
+                if let Some(cap) = x.capture {
+                    return x.piece as i32 - cap as i32;
+                }
+                10000
+            })
         }
 
         for m in &moves {
@@ -313,8 +322,8 @@ impl Engine {
         beta: i32,
     ) -> i32 {
         if depth == 0 {
-            return self.quiesce(board, alpha, beta);
-            //return self.static_eval(board);
+            //return self.quiesce(board, alpha, beta);
+            return self.static_eval(board);
         }
 
         let mut moves = board.get_pseudo_legal_moves();
