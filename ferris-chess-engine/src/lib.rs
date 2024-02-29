@@ -1,5 +1,5 @@
 use ferris_chess_board::{Board, Color, MoveData, Piece};
-use std::time::{Duration, Instant};
+use std::{collections::HashMap, time::{Duration, Instant}};
 
 #[allow(dead_code)]
 pub struct Engine {
@@ -28,6 +28,8 @@ pub struct Engine {
     eg_queen_table_w: [i32; 64],
     mg_king_table_w: [i32; 64],
     eg_king_table_w: [i32; 64],
+
+    mvv_lva_table: HashMap<(Piece, Piece), i32>,
 
     best_move: Option<MoveData>,
 }
@@ -233,6 +235,45 @@ impl Engine {
         let mg_king_table_b = get_game_phase_table(&mg_king_table, mg_piece_weight(Piece::King));
         let eg_king_table_b = get_game_phase_table(&eg_king_table, eg_piece_weight(Piece::King));
 
+        let mvv_lva_table = HashMap::from([
+            ((Piece::King, Piece::Pawn), -6),
+            ((Piece::King, Piece::Knight), -5),
+            ((Piece::King, Piece::Bishop), -4),
+            ((Piece::King, Piece::Rook), -3),
+            ((Piece::King, Piece::Queen), -2),
+            ((Piece::King, Piece::King), -1),
+            ((Piece::Queen, Piece::Pawn), 0),
+            ((Piece::Queen, Piece::Knight), 1),
+            ((Piece::Queen, Piece::Bishop), 2),
+            ((Piece::Queen, Piece::Rook), 3),
+            ((Piece::Queen, Piece::Queen), 4),
+            ((Piece::Queen, Piece::King), 5),
+            ((Piece::Rook, Piece::Pawn), 6),
+            ((Piece::Rook, Piece::Knight), 7),
+            ((Piece::Rook, Piece::Bishop), 8),
+            ((Piece::Rook, Piece::Rook), 9),
+            ((Piece::Rook, Piece::Queen), 10),
+            ((Piece::Rook, Piece::King), 11),
+            ((Piece::Bishop, Piece::Pawn), 12),
+            ((Piece::Bishop, Piece::Knight), 13),
+            ((Piece::Bishop, Piece::Bishop), 14),
+            ((Piece::Bishop, Piece::Rook), 15),
+            ((Piece::Bishop, Piece::Queen), 16),
+            ((Piece::Bishop, Piece::King), 17),
+            ((Piece::Knight, Piece::Pawn), 18),
+            ((Piece::Knight, Piece::Knight), 19),
+            ((Piece::Knight, Piece::Bishop), 20),
+            ((Piece::Knight, Piece::Rook), 21),
+            ((Piece::Knight, Piece::Queen), 22),
+            ((Piece::Knight, Piece::King), 23),
+            ((Piece::Pawn, Piece::Pawn), 24),
+            ((Piece::Pawn, Piece::Knight), 25),
+            ((Piece::Pawn, Piece::Bishop), 26),
+            ((Piece::Pawn, Piece::Rook), 27),
+            ((Piece::Pawn, Piece::Queen), 28),
+            ((Piece::Pawn, Piece::King), 29),
+        ]);
+
         Engine {
             mg_pawn_table_w: mirror_table(&mg_pawn_table_b),
             eg_pawn_table_w: mirror_table(&eg_pawn_table_b),
@@ -259,6 +300,7 @@ impl Engine {
             mg_king_table_b,
             eg_king_table_b,
             best_move: None,
+            mvv_lva_table,
         }
     }
 
@@ -279,25 +321,27 @@ impl Engine {
         self.best_move.clone()
     }
 
-    pub fn root_alpha_beta(&mut self, board: &mut Board, depth: usize) -> Option<MoveData> {
-        let mut alpha = i32::MIN + 1;
-        let beta = i32::MAX - 1;
-        let mut best_move: Option<MoveData> = None;
-
-        let mut moves = board.get_pseudo_legal_moves();
-
-        
+    fn mvv_lva(&self, moves: &mut Vec<MoveData>) {
         if let Some(m) = &self.best_move {
             moves.sort_unstable_by_key(|x| {
                 if x == m {
                     return -10000;
                 }
                 if let Some(cap) = x.capture {
-                    return x.piece as i32 - cap as i32;
+                    return *self.mvv_lva_table.get(&(x.piece, cap)).unwrap();
                 }
                 10000
             })
         }
+    } 
+
+    pub fn root_alpha_beta(&mut self, board: &mut Board, depth: usize) -> Option<MoveData> {
+        let mut alpha = i32::MIN + 1;
+        let beta = i32::MAX - 1;
+        let mut best_move: Option<MoveData> = None;
+
+        let mut moves = board.get_pseudo_legal_moves();
+        self.mvv_lva(&mut moves);
 
         for m in &moves {
             board.make_move(&m);
@@ -322,11 +366,13 @@ impl Engine {
         beta: i32,
     ) -> i32 {
         if depth == 0 {
-            return self.quiesce(board, 4, alpha, beta);
+            return self.quiesce(board, alpha, beta);
             //return self.static_eval(board);
         }
 
         let mut moves = board.get_pseudo_legal_moves();
+        //self.mvv_lva(&mut moves);
+
         let mut legal_moves = 0;
 
         let mut max = i32::MIN;
@@ -362,7 +408,7 @@ impl Engine {
     }
 
     #[allow(dead_code)]
-    fn quiesce(&self, board: &mut Board, depth: usize, mut alpha: i32, beta: i32) -> i32 {
+    fn quiesce(&self, board: &mut Board, mut alpha: i32, beta: i32) -> i32 {
         let stand_pat = self.static_eval(board);
 
         if stand_pat >= beta {
@@ -372,25 +418,16 @@ impl Engine {
             alpha = stand_pat;
         }
 
-        if depth == 0 {
-            return alpha;
-        }
-
         let mut moves = board.get_pseudo_legal_moves();
 
         // Add basic sorting of captures
-        moves.sort_unstable_by_key(|x| {
-            if let Some(cap) = x.capture {
-                return x.piece as i32 - cap as i32;
-            }
-            10000
-        });
+        self.mvv_lva(&mut moves);
 
         for m in moves {
             if let Some(cap) = m.capture {
                 if cap as i32 > m.piece as i32 - 200 {
                     board.make_move(&m);
-                    let score = -self.quiesce(board, depth - 1, -beta, -alpha);
+                    let score = -self.quiesce(board, -beta, -alpha);
                     board.unmake_move(&m);
                     if score >= beta {
                         return beta;

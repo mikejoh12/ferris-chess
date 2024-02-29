@@ -14,7 +14,7 @@ pub enum Color {
 const EMPTY_BOARD_POS: Option<(Color, Piece)> = None;
 
 // Basic piece valuations used for move sorting
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy, Eq, Hash)]
 pub enum Piece {
     Pawn = 100,
     Knight = 300,

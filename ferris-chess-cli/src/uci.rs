@@ -131,7 +131,7 @@ impl Uci {
 
         match &mut self.board {
             Some(board) => {
-                let m = self.engine.iter_deepening(board, 6);
+                let m = self.engine.iter_deepening(board, 5);
 
                 let uci_move = m.unwrap().to_uci_move(board);
                 println!("bestmove {}", uci_move);
@@ -142,6 +142,7 @@ impl Uci {
 
     fn handle_stop(&self) {
         println!("Got stop");
+        // Send bestmove
     }
 
     fn handle_ponderhit(&self, _cmd_parts: &Vec<String>) {
