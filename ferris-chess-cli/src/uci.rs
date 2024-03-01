@@ -133,7 +133,7 @@ impl Uci {
             Some(board) => {
                 let m = self.engine.iter_deepening(board, 5);
 
-                let uci_move = m.unwrap().to_uci_move(board);
+                let uci_move = m.to_uci_move(board);
                 println!("bestmove {}", uci_move);
             }
             None => panic!("Got go command without board initialized"),

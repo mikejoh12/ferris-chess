@@ -1,7 +1,7 @@
 use ferris_chess_board::{Board, Color, MoveData, MoveType, Piece};
 use std::{
     collections::HashMap,
-    time::{Duration, Instant},
+    time::Instant,
 };
 
 #[allow(dead_code)]
@@ -33,8 +33,13 @@ pub struct Engine {
     eg_king_table_w: [i32; 64],
 
     mvv_lva_table: HashMap<(Piece, Piece), i32>,
+}
 
-    best_move: Option<MoveData>,
+pub struct SearchInfo {
+    depth: usize,
+    nodes: usize,
+    time: usize,
+    move_data: MoveData,
 }
 
 fn mg_piece_weight(piece: Piece) -> i32 {
@@ -302,43 +307,37 @@ impl Engine {
             eg_queen_table_b,
             mg_king_table_b,
             eg_king_table_b,
-            best_move: None,
             mvv_lva_table,
         }
     }
 
-    pub fn iter_deepening(&mut self, board: &mut Board, max_depth: usize) -> Option<MoveData> {
-        let start = Instant::now();
+    pub fn iter_deepening(&mut self, board: &mut Board, max_depth: usize) -> MoveData {
+
+        let mut info: Option<SearchInfo> = None;
 
         for depth in 1..=max_depth {
-            let m = self.root_alpha_beta(board, depth);
-            self.best_move = m.clone();
 
-            println!("info depth {}", depth);
-
-            if start.elapsed() >= Duration::from_secs(60) {
-                return self.best_move.clone();
-            }
+            let search_info: SearchInfo = self.root_alpha_beta(board, depth);
+            println!("info depth {} nodes {} time {}", search_info.depth, search_info.nodes, search_info.time);
+            info = Some(search_info);
         }
 
-        self.best_move.clone()
+        info.unwrap().move_data
     }
 
     fn mvv_lva(&self, moves: &mut Vec<MoveData>) {
-        if let Some(m) = &self.best_move {
             moves.sort_unstable_by_key(|x| {
-                if x == m {
-                    return -10000;
-                }
                 if let Some(cap) = x.capture {
                     return *self.mvv_lva_table.get(&(x.piece, cap)).unwrap();
                 }
                 10000
             })
-        }
     }
 
-    pub fn root_alpha_beta(&mut self, board: &mut Board, depth: usize) -> Option<MoveData> {
+    pub fn root_alpha_beta(&mut self, board: &mut Board, depth: usize) -> SearchInfo {
+        let start: Instant = Instant::now();
+        let mut nodes = 0;
+
         let mut alpha = i32::MIN + 1;
         let beta = i32::MAX - 1;
         let mut best_move: Option<MoveData> = None;
@@ -349,7 +348,7 @@ impl Engine {
         for m in &moves {
             board.make_move(&m);
             if !board.is_king_left_in_check() {
-                let score = -self.alpha_beta(board, depth - 1, -beta, -alpha);
+                let score = -self.alpha_beta(board, depth - 1, -beta, -alpha, &mut nodes);
 
                 if score > alpha {
                     alpha = score;
@@ -358,8 +357,17 @@ impl Engine {
             }
             board.unmake_move(&m);
         }
-        best_move
+
+        let search_info = SearchInfo {
+            depth,
+            nodes,
+            time: start.elapsed().as_millis() as usize,
+            move_data: best_move.unwrap(),
+        };
+
+        search_info
     }
+
 
     pub fn alpha_beta(
         &mut self,
@@ -367,9 +375,12 @@ impl Engine {
         depth: usize,
         mut alpha: i32,
         beta: i32,
+        nodes: &mut usize
     ) -> i32 {
+        *nodes += 1;
+
         if depth == 0 {
-            return self.quiesce(board, alpha, beta);
+            return self.quiesce(board, alpha, beta, nodes);
             //return self.static_eval(board);
         }
 
@@ -385,7 +396,7 @@ impl Engine {
                 board.unmake_move(&m)
             } else {
                 legal_moves += 1;
-                let score = -self.alpha_beta(board, depth - 1, -beta, -alpha);
+                let score = -self.alpha_beta(board, depth - 1, -beta, -alpha, nodes);
                 board.unmake_move(&m);
 
                 if score >= beta {
@@ -417,7 +428,9 @@ impl Engine {
             || m.move_type == MoveType::KnightPromotion
     }
 
-    fn quiesce(&self, board: &mut Board, mut alpha: i32, beta: i32) -> i32 {
+    fn quiesce(&self, board: &mut Board, mut alpha: i32, beta: i32, nodes: &mut usize
+    ) -> i32 {
+        *nodes += 1;
         let stand_pat = self.static_eval(board);
 
         if stand_pat >= beta {
@@ -440,7 +453,7 @@ impl Engine {
                 }
 
                 board.make_move(&m);
-                let score = -self.quiesce(board, -beta, -alpha);
+                let score = -self.quiesce(board, -beta, -alpha, nodes);
                 board.unmake_move(&m);
 
                 if score >= beta {
