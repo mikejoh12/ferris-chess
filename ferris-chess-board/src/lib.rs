@@ -1359,17 +1359,16 @@ impl Board {
         };
 
         for pos in positions {
-            let position_moves: Vec<MoveData> =
-                match self.data[*pos] {
-                    Some((Color::White, Piece::Pawn)) => self.get_white_pawn_moves(*pos),
-                    Some((Color::Black, Piece::Pawn)) => self.get_black_pawn_moves(*pos),
-                    Some((_, Piece::Rook)) => self.get_rook_moves(*pos),
-                    Some((_, Piece::Knight)) => self.get_knight_moves(*pos),
-                    Some((_, Piece::Bishop)) => self.get_bishop_moves(*pos),
-                    Some((_, Piece::Queen)) => self.get_queen_moves(*pos),
-                    Some((_, Piece::King)) => self.get_king_moves(*pos),
-                    None => panic!("No piece on expected square")
-                };
+            let position_moves: Vec<MoveData> = match self.data[*pos] {
+                Some((Color::White, Piece::Pawn)) => self.get_white_pawn_moves(*pos),
+                Some((Color::Black, Piece::Pawn)) => self.get_black_pawn_moves(*pos),
+                Some((_, Piece::Rook)) => self.get_rook_moves(*pos),
+                Some((_, Piece::Knight)) => self.get_knight_moves(*pos),
+                Some((_, Piece::Bishop)) => self.get_bishop_moves(*pos),
+                Some((_, Piece::Queen)) => self.get_queen_moves(*pos),
+                Some((_, Piece::King)) => self.get_king_moves(*pos),
+                None => panic!("No piece on expected square"),
+            };
 
             moves.extend_from_slice(&position_moves);
         }

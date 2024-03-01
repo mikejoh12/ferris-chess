@@ -1,5 +1,8 @@
-use ferris_chess_board::{Board, Color, MoveData, Piece};
-use std::{collections::HashMap, time::{Duration, Instant}};
+use ferris_chess_board::{Board, Color, MoveData, MoveType, Piece};
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
 
 #[allow(dead_code)]
 pub struct Engine {
@@ -333,7 +336,7 @@ impl Engine {
                 10000
             })
         }
-    } 
+    }
 
     pub fn root_alpha_beta(&mut self, board: &mut Board, depth: usize) -> Option<MoveData> {
         let mut alpha = i32::MIN + 1;
@@ -371,7 +374,7 @@ impl Engine {
         }
 
         let mut moves = board.get_pseudo_legal_moves();
-        //self.mvv_lva(&mut moves);
+        self.mvv_lva(&mut moves);
 
         let mut legal_moves = 0;
 
@@ -407,7 +410,13 @@ impl Engine {
         max
     }
 
-    #[allow(dead_code)]
+    fn is_prom_move(&self, m: &MoveData) -> bool {
+        m.move_type == MoveType::QueenPromotion
+            || m.move_type == MoveType::RookPromotion
+            || m.move_type == MoveType::BishopPromotion
+            || m.move_type == MoveType::KnightPromotion
+    }
+
     fn quiesce(&self, board: &mut Board, mut alpha: i32, beta: i32) -> i32 {
         let stand_pat = self.static_eval(board);
 
@@ -425,16 +434,20 @@ impl Engine {
 
         for m in moves {
             if let Some(cap) = m.capture {
-                if cap as i32 > m.piece as i32 - 200 {
-                    board.make_move(&m);
-                    let score = -self.quiesce(board, -beta, -alpha);
-                    board.unmake_move(&m);
-                    if score >= beta {
-                        return beta;
-                    }
-                    if score > alpha {
-                        alpha = score;
-                    }
+                // Delta pruning
+                if stand_pat + cap as i32 + 200 < alpha && !self.is_prom_move(&m){
+                    continue;
+                }
+
+                board.make_move(&m);
+                let score = -self.quiesce(board, -beta, -alpha);
+                board.unmake_move(&m);
+
+                if score >= beta {
+                    return beta;
+                }
+                if score > alpha {
+                    alpha = score;
                 }
             }
         }
