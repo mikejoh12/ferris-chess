@@ -88,8 +88,8 @@ impl Uci {
         println!("Got setoption");
     }
 
-    fn handle_ucinewgame(&self, _cmd_parts: &Vec<String>) {
-        println!("Got ucinewgame");
+    fn handle_ucinewgame(&mut self, _cmd_parts: &Vec<String>) {
+        self.engine.new_game();
     }
 
     fn handle_position(&mut self, cmd_parts: &Vec<String>) {
@@ -140,9 +140,8 @@ impl Uci {
         }
     }
 
-    fn handle_stop(&self) {
-        println!("Got stop");
-        // Send bestmove
+    fn handle_stop(&mut self) {
+        self.engine.stop();
     }
 
     fn handle_ponderhit(&self, _cmd_parts: &Vec<String>) {

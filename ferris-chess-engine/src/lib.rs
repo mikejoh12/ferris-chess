@@ -33,6 +33,7 @@ pub struct Engine {
     eg_king_table_w: [i32; 64],
 
     mvv_lva_table: HashMap<(Piece, Piece), i32>,
+    is_stopped: bool,
 }
 
 pub struct SearchInfo {
@@ -308,7 +309,16 @@ impl Engine {
             mg_king_table_b,
             eg_king_table_b,
             mvv_lva_table,
+            is_stopped: false,
         }
+    }
+
+    pub fn stop(&mut self) {
+        self.is_stopped = true;
+    }
+
+    pub fn new_game(&mut self) {
+        self.is_stopped = false;
     }
 
     pub fn iter_deepening(&mut self, board: &mut Board, max_depth: usize) -> MoveData {
@@ -317,9 +327,13 @@ impl Engine {
 
         for depth in 1..=max_depth {
 
-            let search_info: SearchInfo = self.root_alpha_beta(board, depth);
+            let search_info: SearchInfo = self.root_alpha_beta(board, depth).unwrap();
             println!("info depth {} nodes {} time {}", search_info.depth, search_info.nodes, search_info.time);
             info = Some(search_info);
+
+            if self.is_stopped {
+                break;
+            }
         }
 
         info.unwrap().move_data
@@ -334,13 +348,13 @@ impl Engine {
             })
     }
 
-    pub fn root_alpha_beta(&mut self, board: &mut Board, depth: usize) -> SearchInfo {
+    pub fn root_alpha_beta(&mut self, board: &mut Board, depth: usize) -> Option<SearchInfo> {
         let start: Instant = Instant::now();
         let mut nodes = 0;
 
         let mut alpha = i32::MIN + 1;
         let beta = i32::MAX - 1;
-        let mut best_move: Option<MoveData> = None;
+        let mut search_info: Option<SearchInfo> = None;
 
         let mut moves = board.get_pseudo_legal_moves();
         self.mvv_lva(&mut moves);
@@ -352,18 +366,20 @@ impl Engine {
 
                 if score > alpha {
                     alpha = score;
-                    best_move = Some(m.clone());
+                    search_info = Some(SearchInfo {
+                        depth,
+                        nodes,
+                        time: start.elapsed().as_millis() as usize,
+                        move_data: m.clone(),
+                    });
                 }
             }
             board.unmake_move(&m);
-        }
 
-        let search_info = SearchInfo {
-            depth,
-            nodes,
-            time: start.elapsed().as_millis() as usize,
-            move_data: best_move.unwrap(),
-        };
+            if self.is_stopped {
+                break
+            };
+        }
 
         search_info
     }
@@ -380,7 +396,7 @@ impl Engine {
         *nodes += 1;
 
         if depth == 0 {
-            return self.quiesce(board, alpha, beta, nodes);
+            return self.quiesce(board, alpha, beta, nodes, 10);
             //return self.static_eval(board);
         }
 
@@ -428,7 +444,7 @@ impl Engine {
             || m.move_type == MoveType::KnightPromotion
     }
 
-    fn quiesce(&self, board: &mut Board, mut alpha: i32, beta: i32, nodes: &mut usize
+    fn quiesce(&self, board: &mut Board, mut alpha: i32, beta: i32, nodes: &mut usize, depth: usize
     ) -> i32 {
         *nodes += 1;
         let stand_pat = self.static_eval(board);
@@ -438,6 +454,10 @@ impl Engine {
         }
         if alpha < stand_pat {
             alpha = stand_pat;
+        }
+
+        if depth == 0 {
+            return alpha
         }
 
         let mut moves = board.get_pseudo_legal_moves();
@@ -453,7 +473,7 @@ impl Engine {
                 }
 
                 board.make_move(&m);
-                let score = -self.quiesce(board, -beta, -alpha, nodes);
+                let score = -self.quiesce(board, -beta, -alpha, nodes, depth - 1);
                 board.unmake_move(&m);
 
                 if score >= beta {
