@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 ferris-chess-board = { path = "../ferris-chess-board" }
+regex = "1.10.3"

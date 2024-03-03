@@ -1,10 +1,53 @@
 use ferris_chess_board::{Board, Color, MoveData, MoveType, Piece};
+use regex::Regex;
 use std::{
     collections::HashMap,
-    time::Instant,
+    time::{Duration, Instant},
 };
 
-#[allow(dead_code)]
+pub struct GoCommand {
+    wtime: usize,
+    btime: usize,
+    movestogo: usize,
+    max_depth: usize,
+}
+
+impl GoCommand {
+    pub fn new(go_input: &String) -> Self {
+        // Set some default values in case go command doesn't include them
+        let mut wtime: usize = 10000;
+        let mut btime: usize = 10000;
+        let mut movestogo = 40;
+
+        let wtime_re = Regex::new(r"wtime \d*").unwrap();
+        let btime_re = Regex::new(r"btime \d*").unwrap();
+        let movestogo_re = Regex::new(r"movestogo \d*").unwrap();
+
+        println!("Parsing regex for: {}", go_input);
+
+        if let Some(wtime_match) = wtime_re.find(&go_input) {
+            wtime = wtime_match.as_str().split_ascii_whitespace().nth(1).unwrap().parse().unwrap();
+        }
+
+        if let Some(btime_match) = btime_re.find(&go_input) {
+            btime = btime_match.as_str().split_ascii_whitespace().nth(1).unwrap().parse().unwrap();
+        }
+
+        if let Some(movestogo_match) = movestogo_re.find(&go_input) {
+            movestogo = movestogo_match.as_str().split_ascii_whitespace().nth(1).unwrap().parse().unwrap();
+        }
+
+        println!("Got go command: wtime {} btime {} movestogo {}", wtime, btime, movestogo);
+
+        GoCommand {
+            wtime,
+            btime,
+            movestogo,
+            max_depth: 10,
+        }
+    }
+}
+
 pub struct Engine {
     mg_pawn_table_b: [i32; 64],
     eg_pawn_table_b: [i32; 64],
@@ -34,6 +77,7 @@ pub struct Engine {
 
     mvv_lva_table: HashMap<(Piece, Piece), i32>,
     is_stopped: bool,
+    stop_time: Instant,
 }
 
 pub struct SearchInfo {
@@ -310,6 +354,7 @@ impl Engine {
             eg_king_table_b,
             mvv_lva_table,
             is_stopped: false,
+            stop_time: Instant::now(),
         }
     }
 
@@ -321,15 +366,28 @@ impl Engine {
         self.is_stopped = false;
     }
 
-    pub fn iter_deepening(&mut self, board: &mut Board, max_depth: usize) -> MoveData {
+    fn init_time(&mut self, board: &Board, go_cmd: &GoCommand) {
+        self.stop_time = Instant::now()
+            + Duration::from_millis(match board.is_white_to_move {
+                true => go_cmd.wtime - 1000,
+                false => go_cmd.btime - 1000,
+            } as u64 / go_cmd.movestogo as u64)
+    }
+
+    pub fn iter_deepening(&mut self, board: &mut Board, go_cmd: &GoCommand) -> MoveData {
+        self.init_time(board, go_cmd);
 
         let mut info: Option<SearchInfo> = None;
 
-        for depth in 1..=max_depth {
-
-            let search_info: SearchInfo = self.root_alpha_beta(board, depth).unwrap();
-            println!("info depth {} nodes {} time {}", search_info.depth, search_info.nodes, search_info.time);
-            info = Some(search_info);
+        for depth in 1..=go_cmd.max_depth {
+            if let Some(search_info) = self.root_alpha_beta(board, depth)
+            {
+                println!(
+                    "info depth {} nodes {} time {}",
+                    search_info.depth, search_info.nodes, search_info.time
+                );
+                info = Some(search_info);
+            }
 
             if self.is_stopped {
                 break;
@@ -340,12 +398,12 @@ impl Engine {
     }
 
     fn mvv_lva(&self, moves: &mut Vec<MoveData>) {
-            moves.sort_unstable_by_key(|x| {
-                if let Some(cap) = x.capture {
-                    return *self.mvv_lva_table.get(&(x.piece, cap)).unwrap();
-                }
-                10000
-            })
+        moves.sort_unstable_by_key(|x| {
+            if let Some(cap) = x.capture {
+                return *self.mvv_lva_table.get(&(x.piece, cap)).unwrap();
+            }
+            10000
+        })
     }
 
     pub fn root_alpha_beta(&mut self, board: &mut Board, depth: usize) -> Option<SearchInfo> {
@@ -355,6 +413,7 @@ impl Engine {
         let mut alpha = i32::MIN + 1;
         let beta = i32::MAX - 1;
         let mut search_info: Option<SearchInfo> = None;
+        let mut legal_moves = 0;
 
         let mut moves = board.get_pseudo_legal_moves();
         self.mvv_lva(&mut moves);
@@ -363,6 +422,7 @@ impl Engine {
             board.make_move(&m);
             if !board.is_king_left_in_check() {
                 let score = -self.alpha_beta(board, depth - 1, -beta, -alpha, &mut nodes);
+                legal_moves += 1;
 
                 if score > alpha {
                     alpha = score;
@@ -376,14 +436,19 @@ impl Engine {
             }
             board.unmake_move(&m);
 
-            if self.is_stopped {
-                break
-            };
+            if self.is_stopped || Instant::now() > self.stop_time {
+                return None
+            }
+        }
+
+        if legal_moves == 0 {
+            if board.is_player_mated() {
+                return None;
+            }
         }
 
         search_info
     }
-
 
     pub fn alpha_beta(
         &mut self,
@@ -391,12 +456,12 @@ impl Engine {
         depth: usize,
         mut alpha: i32,
         beta: i32,
-        nodes: &mut usize
+        nodes: &mut usize,
     ) -> i32 {
         *nodes += 1;
 
         if depth == 0 {
-            return self.quiesce(board, alpha, beta, nodes, 10);
+            return self.quiesce(board, alpha, beta, nodes);
             //return self.static_eval(board);
         }
 
@@ -425,6 +490,9 @@ impl Engine {
 
                 alpha = alpha.max(score);
             }
+            if self.is_stopped || Instant::now() > self.stop_time {
+                return max;
+            }
         }
 
         if legal_moves == 0 {
@@ -444,7 +512,12 @@ impl Engine {
             || m.move_type == MoveType::KnightPromotion
     }
 
-    fn quiesce(&self, board: &mut Board, mut alpha: i32, beta: i32, nodes: &mut usize, depth: usize
+    fn quiesce(
+        &self,
+        board: &mut Board,
+        mut alpha: i32,
+        beta: i32,
+        nodes: &mut usize,
     ) -> i32 {
         *nodes += 1;
         let stand_pat = self.static_eval(board);
@@ -456,10 +529,6 @@ impl Engine {
             alpha = stand_pat;
         }
 
-        if depth == 0 {
-            return alpha
-        }
-
         let mut moves = board.get_pseudo_legal_moves();
 
         // Add basic sorting of captures
@@ -468,12 +537,12 @@ impl Engine {
         for m in moves {
             if let Some(cap) = m.capture {
                 // Delta pruning
-                if stand_pat + cap as i32 + 200 < alpha && !self.is_prom_move(&m){
+                if stand_pat + cap as i32 + 200 < alpha && !self.is_prom_move(&m) {
                     continue;
                 }
 
                 board.make_move(&m);
-                let score = -self.quiesce(board, -beta, -alpha, nodes, depth - 1);
+                let score = -self.quiesce(board, -beta, -alpha, nodes);
                 board.unmake_move(&m);
 
                 if score >= beta {

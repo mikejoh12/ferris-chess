@@ -1,7 +1,7 @@
 use std::{io::BufRead, sync::mpsc, thread};
 extern crate rand;
 use ferris_chess_board::{Board, MoveData};
-use ferris_chess_engine::Engine;
+use ferris_chess_engine::{Engine, GoCommand};
 
 pub struct Uci {
     board: Option<Board>,
@@ -58,7 +58,7 @@ impl Uci {
             "register" => println!("Got register"),
             "ucinewgame" => self.handle_ucinewgame(&cmd_parts),
             "position" => self.handle_position(&cmd_parts),
-            "go" => self.handle_go(&cmd_parts),
+            "go" => self.handle_go(&cmd),
             "stop" => self.handle_stop(),
             "ponderhit" => self.handle_ponderhit(&cmd_parts),
             "quit" => self.handle_quit(),
@@ -110,7 +110,7 @@ impl Uci {
         }
     }
 
-    fn handle_go(&mut self, _cmd_parts: &Vec<String>) {
+    fn handle_go(&mut self, cmd: &String) {
         /* Add code to parse go options
         match cmd_parts[1].as_str() {
             "searchmoves" => println!("Got go searchmoves"),
@@ -131,7 +131,8 @@ impl Uci {
 
         match &mut self.board {
             Some(board) => {
-                let m = self.engine.iter_deepening(board, 5);
+                let go_cmd = GoCommand::new(cmd);
+                let m = self.engine.iter_deepening(board, &go_cmd);
 
                 let uci_move = m.to_uci_move(board);
                 println!("bestmove {}", uci_move);
