@@ -43,7 +43,7 @@ impl GoCommand {
             wtime,
             btime,
             movestogo,
-            max_depth: 10,
+            max_depth: 50,
         }
     }
 }
@@ -84,6 +84,7 @@ pub struct SearchInfo {
     depth: usize,
     nodes: usize,
     time: usize,
+    score: i32,
     move_data: MoveData,
 }
 
@@ -383,8 +384,8 @@ impl Engine {
             if let Some(search_info) = self.root_alpha_beta(board, depth)
             {
                 println!(
-                    "info depth {} nodes {} time {}",
-                    search_info.depth, search_info.nodes, search_info.time
+                    "info depth {} nodes {} time {} score cp {}",
+                    search_info.depth, search_info.nodes, search_info.time, search_info.score
                 );
                 info = Some(search_info);
             }
@@ -430,6 +431,7 @@ impl Engine {
                         depth,
                         nodes,
                         time: start.elapsed().as_millis() as usize,
+                        score,
                         move_data: m.clone(),
                     });
                 }
