@@ -57,7 +57,7 @@ impl Uci {
             "setoption" => self.handle_setoption(&cmd_parts),
             "register" => println!("Got register"),
             "ucinewgame" => self.handle_ucinewgame(&cmd_parts),
-            "position" => self.handle_position(&cmd_parts),
+            "position" => self.handle_position(&cmd),
             "go" => self.handle_go(&cmd),
             "stop" => self.handle_stop(),
             "ponderhit" => self.handle_ponderhit(&cmd_parts),
@@ -92,21 +92,24 @@ impl Uci {
         self.engine.new_game();
     }
 
-    fn handle_position(&mut self, cmd_parts: &Vec<String>) {
-        let pos = match cmd_parts[1].as_str() {
-            "startpos" => "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-            _ => cmd_parts[1].as_str(),
-        };
+    fn handle_position(&mut self, cmd: &String) {
 
-        self.board = Some(Board::from_fen(pos));
+        if cmd.starts_with("position startpos") {
+            let cmd_parts: Vec<String> = cmd.split(" ").map(|c|c.to_string()).collect();
 
-        if let Some(board) = &mut self.board {
-            if cmd_parts.len() > 3 && cmd_parts[2] == "moves" {
-                for i in 3..cmd_parts.len() {
-                    let m = MoveData::from_uci(&cmd_parts[i], board);
-                    board.make_move(&m);
+            self.board = Some(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"));
+            if let Some(board) = &mut self.board {
+                if cmd_parts.len() > 3 && cmd_parts[2] == "moves" {
+                    for i in 3..cmd_parts.len() {
+                        let m = MoveData::from_uci(&cmd_parts[i], board);
+                        board.make_move(&m);
+                    }
                 }
             }
+        } else if cmd.starts_with("position fen") {
+            let fen = cmd.strip_prefix("position fen ").unwrap();
+            self.board = Some(Board::from_fen(fen));
+
         }
     }
 
