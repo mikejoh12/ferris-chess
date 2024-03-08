@@ -94,23 +94,27 @@ impl Uci {
 
     fn handle_position(&mut self, cmd: &String) {
 
-        if cmd.starts_with("position startpos") {
-            let cmd_parts: Vec<String> = cmd.split(" ").map(|c|c.to_string()).collect();
+        let mut parts = cmd.split("moves").map(|p|p.trim());
+        let position_cmd = parts.next().unwrap();
 
+        if position_cmd == "position startpos" {
             self.board = Some(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"));
-            if let Some(board) = &mut self.board {
-                if cmd_parts.len() > 3 && cmd_parts[2] == "moves" {
-                    for i in 3..cmd_parts.len() {
-                        let m = MoveData::from_uci(&cmd_parts[i], board);
-                        board.make_move(&m);
-                    }
-                }
-            }
-        } else if cmd.starts_with("position fen") {
+        } else if position_cmd.starts_with("position fen") {
             let fen = cmd.strip_prefix("position fen ").unwrap();
             self.board = Some(Board::from_fen(fen));
-
+        } else {
+            panic!("Invalid position command");
         }
+
+        if let Some(board) = &mut self.board {
+            if let Some(m) = parts.next() {
+                for uci_move in m.split_ascii_whitespace() {
+                    let m = MoveData::from_uci(&uci_move.to_string(), board);
+                    board.make_move(&m);
+                }
+            }
+        }
+
     }
 
     fn handle_go(&mut self, cmd: &String) {
