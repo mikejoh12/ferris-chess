@@ -23,8 +23,6 @@ impl GoCommand {
         let btime_re = Regex::new(r"btime \d*").unwrap();
         let movestogo_re = Regex::new(r"movestogo \d*").unwrap();
 
-        println!("Parsing regex for: {}", go_input);
-
         if let Some(wtime_match) = wtime_re.find(&go_input) {
             wtime = wtime_match.as_str().split_ascii_whitespace().nth(1).unwrap().parse().unwrap();
         }
@@ -36,8 +34,6 @@ impl GoCommand {
         if let Some(movestogo_match) = movestogo_re.find(&go_input) {
             movestogo = movestogo_match.as_str().split_ascii_whitespace().nth(1).unwrap().parse().unwrap();
         }
-
-        println!("Got go command: wtime {} btime {} movestogo {}", wtime, btime, movestogo);
 
         GoCommand {
             wtime,
@@ -113,7 +109,7 @@ fn eg_piece_weight(piece: Piece) -> i32 {
 fn mirror_table(t: &[i32; 64]) -> [i32; 64] {
     let mut mirrored: [i32; 64] = [0; 64];
     for i in 0..64 {
-        mirrored[i ^ 56] = t[i];
+        mirrored[i] = t[i^56];
     }
     mirrored
 }
@@ -331,7 +327,7 @@ impl Engine {
         Engine {
             mg_pawn_table_w: mirror_table(&mg_pawn_table_b),
             eg_pawn_table_w: mirror_table(&eg_pawn_table_b),
-            mg_knight_table_w: mirror_table(&mg_king_table_b),
+            mg_knight_table_w: mirror_table(&mg_knight_table_b),
             eg_knight_table_w: mirror_table(&eg_knight_table_b),
             mg_bishop_table_w: mirror_table(&mg_bishop_table_b),
             eg_bishop_table_w: mirror_table(&eg_bishop_table_b),
@@ -558,40 +554,48 @@ impl Engine {
         alpha
     }
 
-    fn static_eval(&self, board: &Board) -> i32 {
-        let mut mg_score = 0;
-        let mut eg_score = 0;
+    pub fn static_eval(&self, board: &Board) -> i32 {
+        let mut mg_score_w = 0;
+        let mut eg_score_w = 0;
+        let mut mg_score_b = 0;
+        let mut eg_score_b = 0;
 
-        let who_to_move = match board.is_white_to_move {
-            true => 1,
-            false => -1,
-        };
-
-        let mut game_phase_score = 0;
+        let mut mg_phase = 0;
 
         for i in &board.pieces_w {
             let p = board.data[*i].unwrap();
 
-            game_phase_score += self.score_game_phase_pieces(p.1);
+            mg_phase += self.score_game_phase_pieces(p.1);
 
-            mg_score += self.get_mg_score(p, *i) * who_to_move;
-            eg_score += self.get_eg_score(p, *i) * who_to_move;
+            mg_score_w += self.get_mg_score(p, *i);
+            eg_score_w += self.get_eg_score(p, *i);
         }
 
         for i in &board.pieces_b {
             let p = board.data[*i].unwrap();
 
-            game_phase_score += self.score_game_phase_pieces(p.1);
+            mg_phase += self.score_game_phase_pieces(p.1);
 
-            mg_score -= self.get_mg_score(p, *i) * who_to_move;
-            eg_score -= self.get_eg_score(p, *i) * who_to_move;
+            mg_score_b += self.get_mg_score(p, *i);
+            eg_score_b += self.get_eg_score(p, *i);
         }
 
-        if game_phase_score > 24 {
-            game_phase_score = 24;
+        // In case of queen promotion, limit mg_score to 24
+        if mg_phase > 24 {
+            mg_phase = 24;
         }
 
-        ((game_phase_score * mg_score) + ((24 - game_phase_score) * eg_score)) / 24
+        // Tapered eval: mg_phase + eg_phase = 24
+        // Considers number of remaining non-pawn/king pieces at values 1 (Knight, Bishop), 2 (Rook), 4 (Queen)
+        let eg_phase = 24 - mg_phase;
+
+        let mg_score = mg_score_w - mg_score_b;
+        let eg_score = eg_score_w - eg_score_b;
+
+        if board.is_white_to_move {
+            return (mg_score * mg_phase + eg_score * eg_phase) / 24
+        }
+        -(mg_score * mg_phase + eg_score * eg_phase) / 24
     }
 
     fn score_game_phase_pieces(&self, piece: Piece) -> i32 {
