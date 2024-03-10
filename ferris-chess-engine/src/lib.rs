@@ -385,6 +385,10 @@ impl Engine {
         for depth in 1..=go_cmd.max_depth {
             if let Some(search_info) = self.root_alpha_beta(board, depth)
             {
+                // Add small delay for now to allow multiple infos to be processed by GUI in
+                // first couple of plys. TODO: Add concurrency or asynchronous handling
+                thread::sleep(Duration::from_millis(10));
+
                 match search_info.score {
                     Score::CentiPawns(cp) => {
                         println!(
@@ -400,10 +404,6 @@ impl Engine {
                     },
                 }
 
-                // Add small delay for now to allow multiple infos to be processed by GUI in
-                // first couple of plys. TODO: Add concurrency or asynchronous handling
-                thread::sleep(Duration::from_millis(1));
-                
                 info = Some(search_info);
             }
 
