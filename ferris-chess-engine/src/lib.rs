@@ -1,9 +1,10 @@
 use ferris_chess_board::{Board, Color, MoveData, MoveType, Piece};
 use regex::Regex;
 use std::{
-    collections::HashMap,
-    time::{Duration, Instant},
+    collections::HashMap, thread, time::{Duration, Instant}
 };
+
+pub const MATED_VALUE: i16 = i16::MIN / 2; 
 
 pub struct GoCommand {
     wtime: usize,
@@ -45,46 +46,51 @@ impl GoCommand {
 }
 
 pub struct Engine {
-    mg_pawn_table_b: [i32; 64],
-    eg_pawn_table_b: [i32; 64],
-    mg_knight_table_b: [i32; 64],
-    eg_knight_table_b: [i32; 64],
-    mg_bishop_table_b: [i32; 64],
-    eg_bishop_table_b: [i32; 64],
-    mg_rook_table_b: [i32; 64],
-    eg_rook_table_b: [i32; 64],
-    mg_queen_table_b: [i32; 64],
-    eg_queen_table_b: [i32; 64],
-    mg_king_table_b: [i32; 64],
-    eg_king_table_b: [i32; 64],
+    mg_pawn_table_b: [i16; 64],
+    eg_pawn_table_b: [i16; 64],
+    mg_knight_table_b: [i16; 64],
+    eg_knight_table_b: [i16; 64],
+    mg_bishop_table_b: [i16; 64],
+    eg_bishop_table_b: [i16; 64],
+    mg_rook_table_b: [i16; 64],
+    eg_rook_table_b: [i16; 64],
+    mg_queen_table_b: [i16; 64],
+    eg_queen_table_b: [i16; 64],
+    mg_king_table_b: [i16; 64],
+    eg_king_table_b: [i16; 64],
 
-    mg_pawn_table_w: [i32; 64],
-    eg_pawn_table_w: [i32; 64],
-    mg_knight_table_w: [i32; 64],
-    eg_knight_table_w: [i32; 64],
-    mg_bishop_table_w: [i32; 64],
-    eg_bishop_table_w: [i32; 64],
-    mg_rook_table_w: [i32; 64],
-    eg_rook_table_w: [i32; 64],
-    mg_queen_table_w: [i32; 64],
-    eg_queen_table_w: [i32; 64],
-    mg_king_table_w: [i32; 64],
-    eg_king_table_w: [i32; 64],
+    mg_pawn_table_w: [i16; 64],
+    eg_pawn_table_w: [i16; 64],
+    mg_knight_table_w: [i16; 64],
+    eg_knight_table_w: [i16; 64],
+    mg_bishop_table_w: [i16; 64],
+    eg_bishop_table_w: [i16; 64],
+    mg_rook_table_w: [i16; 64],
+    eg_rook_table_w: [i16; 64],
+    mg_queen_table_w: [i16; 64],
+    eg_queen_table_w: [i16; 64],
+    mg_king_table_w: [i16; 64],
+    eg_king_table_w: [i16; 64],
 
-    mvv_lva_table: HashMap<(Piece, Piece), i32>,
+    mvv_lva_table: HashMap<(Piece, Piece), i16>,
     is_stopped: bool,
     stop_time: Instant,
+}
+
+enum Score {
+    CentiPawns(i16),
+    Mate(i16),
 }
 
 pub struct SearchInfo {
     depth: usize,
     nodes: usize,
     time: usize,
-    score: i32,
+    score: Score,
     move_data: MoveData,
 }
 
-fn mg_piece_weight(piece: Piece) -> i32 {
+fn mg_piece_weight(piece: Piece) -> i16 {
     match piece {
         Piece::Pawn => 82,
         Piece::Knight => 337,
@@ -95,7 +101,7 @@ fn mg_piece_weight(piece: Piece) -> i32 {
     }
 }
 
-fn eg_piece_weight(piece: Piece) -> i32 {
+fn eg_piece_weight(piece: Piece) -> i16 {
     match piece {
         Piece::Pawn => 94,
         Piece::Knight => 281,
@@ -106,16 +112,16 @@ fn eg_piece_weight(piece: Piece) -> i32 {
     }
 }
 
-fn mirror_table(t: &[i32; 64]) -> [i32; 64] {
-    let mut mirrored: [i32; 64] = [0; 64];
+fn mirror_table(t: &[i16; 64]) -> [i16; 64] {
+    let mut mirrored: [i16; 64] = [0; 64];
     for i in 0..64 {
         mirrored[i] = t[i^56];
     }
     mirrored
 }
 
-fn get_game_phase_table(t: &[i32; 64], corr: i32) -> [i32; 64] {
-    let mut corrected: [i32; 64] = [0; 64];
+fn get_game_phase_table(t: &[i16; 64], corr: i16) -> [i16; 64] {
+    let mut corrected: [i16; 64] = [0; 64];
     for i in 0..64 {
         corrected[i] = t[i] + corr;
     }
@@ -125,7 +131,7 @@ fn get_game_phase_table(t: &[i32; 64], corr: i32) -> [i32; 64] {
 impl Engine {
     pub fn new() -> Engine {
         #[rustfmt::skip]
-        let mg_pawn_table: [i32; 64] = [
+        let mg_pawn_table: [i16; 64] = [
             0,   0,   0,   0,   0,   0,  0,   0,
            98, 134,  61,  95,  68, 126, 34, -11,
            -6,   7,  26,  31,  65,  56, 25, -20,
@@ -137,7 +143,7 @@ impl Engine {
         ];
 
         #[rustfmt::skip]
-        let eg_pawn_table: [i32; 64] = [
+        let eg_pawn_table: [i16; 64] = [
             0,   0,   0,   0,   0,   0,   0,   0,
           178, 173, 158, 134, 147, 132, 165, 187,
            94, 100,  85,  67,  56,  53,  82,  84,
@@ -149,7 +155,7 @@ impl Engine {
         ];
 
         #[rustfmt::skip]
-        let mg_knight_table: [i32; 64] = [
+        let mg_knight_table: [i16; 64] = [
             -167, -89, -34, -49,  61, -97, -15, -107,
              -73, -41,  72,  36,  23,  62,   7,  -17,
              -47,  60,  37,  65,  84, 129,  73,   44,
@@ -161,7 +167,7 @@ impl Engine {
         ];
 
         #[rustfmt::skip]
-        let eg_knight_table: [i32; 64] = [
+        let eg_knight_table: [i16; 64] = [
             -58, -38, -13, -28, -31, -27, -63, -99,
             -25,  -8, -25,  -2,  -9, -25, -24, -52,
             -24, -20,  10,   9,  -1,  -9, -19, -41,
@@ -173,7 +179,7 @@ impl Engine {
         ];
 
         #[rustfmt::skip]
-        let mg_bishop_table: [i32; 64] = [
+        let mg_bishop_table: [i16; 64] = [
             -29,   4, -82, -37, -25, -42,   7,  -8,
             -26,  16, -18, -13,  30,  59,  18, -47,
             -16,  37,  43,  40,  35,  50,  37,  -2,
@@ -185,7 +191,7 @@ impl Engine {
         ];
 
         #[rustfmt::skip]
-        let eg_bishop_table: [i32; 64] = [
+        let eg_bishop_table: [i16; 64] = [
             -14, -21, -11,  -8, -7,  -9, -17, -24,
              -8,  -4,   7, -12, -3, -13,  -4, -14,
               2,  -8,   0,  -1, -2,   6,   0,   4,
@@ -197,7 +203,7 @@ impl Engine {
         ];
 
         #[rustfmt::skip]
-        let mg_rook_table: [i32; 64] = [
+        let mg_rook_table: [i16; 64] = [
             32,  42,  32,  51, 63,  9,  31,  43,
             27,  32,  58,  62, 80, 67,  26,  44,
             -5,  19,  26,  36, 17, 45,  61,  16,
@@ -209,7 +215,7 @@ impl Engine {
         ];
 
         #[rustfmt::skip]
-        let eg_rook_table: [i32; 64] = [
+        let eg_rook_table: [i16; 64] = [
             13, 10, 18, 15, 12,  12,   8,   5,
             11, 13, 13, 11, -3,   3,   8,   3,
              7,  7,  7,  5,  4,  -3,  -5,  -3,
@@ -221,7 +227,7 @@ impl Engine {
         ];
 
         #[rustfmt::skip]
-        let mg_queen_table: [i32; 64] = [
+        let mg_queen_table: [i16; 64] = [
             -28,   0,  29,  12,  59,  44,  43,  45,
             -24, -39,  -5,   1, -16,  57,  28,  54,
             -13, -17,   7,   8,  29,  56,  47,  57,
@@ -233,7 +239,7 @@ impl Engine {
         ];
 
         #[rustfmt::skip]
-        let eg_queen_table: [i32; 64] = [
+        let eg_queen_table: [i16; 64] = [
             -9,  22,  22,  27,  27,  19,  10,  20,
            -17,  20,  32,  41,  58,  25,  30,   0,
            -20,   6,   9,  49,  47,  35,  19,   9,
@@ -245,7 +251,7 @@ impl Engine {
         ];
 
         #[rustfmt::skip]
-        let mg_king_table: [i32; 64] = [
+        let mg_king_table: [i16; 64] = [
             -65,  23,  16, -15, -56, -34,   2,  13,
              29,  -1, -20,  -7,  -8,  -4, -38, -29,
              -9,  24,   2, -16, -20,   6,  22, -22,
@@ -257,7 +263,7 @@ impl Engine {
         ];
 
         #[rustfmt::skip]
-        let eg_king_table: [i32; 64] = [
+        let eg_king_table: [i16; 64] = [
             -74, -35, -18, -18, -11,  15,   4, -17,
             -12,  17,  14,  17,  17,  38,  23,  11,
              10,  17,  23,  15,  20,  45,  44,  13,
@@ -379,10 +385,25 @@ impl Engine {
         for depth in 1..=go_cmd.max_depth {
             if let Some(search_info) = self.root_alpha_beta(board, depth)
             {
-                println!(
-                    "info depth {} nodes {} time {} score cp {}",
-                    search_info.depth, search_info.nodes, search_info.time, search_info.score
-                );
+                match search_info.score {
+                    Score::CentiPawns(cp) => {
+                        println!(
+                            "info depth {} nodes {} time {} score cp {}",
+                            search_info.depth, search_info.nodes, search_info.time, cp
+                        );
+                    },
+                    Score::Mate(m) => {
+                        println!(
+                            "info depth {} nodes {} time {} score mate {}",
+                            search_info.depth, search_info.nodes, search_info.time, m
+                        ); 
+                    },
+                }
+
+                // Add small delay for now to allow multiple infos to be processed by GUI in
+                // first couple of plys. TODO: Add concurrency or asynchronous handling
+                thread::sleep(Duration::from_millis(1));
+                
                 info = Some(search_info);
             }
 
@@ -407,8 +428,8 @@ impl Engine {
         let start: Instant = Instant::now();
         let mut nodes = 0;
 
-        let mut alpha = i32::MIN + 1;
-        let beta = i32::MAX - 1;
+        let mut alpha = i16::MIN + 1;
+        let beta = i16::MAX - 1;
         let mut search_info: Option<SearchInfo> = None;
         let mut legal_moves = 0;
 
@@ -418,11 +439,17 @@ impl Engine {
         for m in &moves {
             board.make_move(&m);
             if !board.is_king_left_in_check() {
-                let score = -self.alpha_beta(board, depth - 1, -beta, -alpha, &mut nodes);
+                let ab_score = -self.alpha_beta(board, depth - 1, 1, -beta, -alpha, &mut nodes);
                 legal_moves += 1;
 
-                if score > alpha {
-                    alpha = score;
+                if ab_score > alpha {
+                    let score = match (ab_score.abs_diff(MATED_VALUE) < 50, ab_score.abs_diff(-MATED_VALUE) < 50) {
+                        (true, false) => Score::Mate(MATED_VALUE.abs_diff(ab_score) as i16),
+                        (false, true) => Score::Mate((-MATED_VALUE).abs_diff(ab_score) as i16),
+                        _ => Score::CentiPawns(ab_score),
+                    };
+
+                    alpha = ab_score;
                     search_info = Some(SearchInfo {
                         depth,
                         nodes,
@@ -452,15 +479,15 @@ impl Engine {
         &mut self,
         board: &mut Board,
         depth: usize,
-        mut alpha: i32,
-        beta: i32,
+        ply: i16,
+        mut alpha: i16,
+        beta: i16,
         nodes: &mut usize,
-    ) -> i32 {
+    ) -> i16 {
         *nodes += 1;
 
         if depth == 0 {
             return self.quiesce(board, alpha, beta, nodes);
-            //return self.static_eval(board);
         }
 
         let mut moves = board.get_pseudo_legal_moves();
@@ -468,14 +495,14 @@ impl Engine {
 
         let mut legal_moves = 0;
 
-        let mut max = i32::MIN;
+        let mut max = i16::MIN;
         for m in moves.drain(..) {
             board.make_move(&m);
             if board.is_king_left_in_check() {
                 board.unmake_move(&m)
             } else {
                 legal_moves += 1;
-                let score = -self.alpha_beta(board, depth - 1, -beta, -alpha, nodes);
+                let score = -self.alpha_beta(board, depth - 1, ply + 1, -beta, -alpha, nodes);
                 board.unmake_move(&m);
 
                 if score >= beta {
@@ -495,7 +522,7 @@ impl Engine {
 
         if legal_moves == 0 {
             if board.is_player_mated() {
-                return -100000 - depth as i32;
+                return MATED_VALUE + ply;
             }
             return 0;
         }
@@ -513,10 +540,10 @@ impl Engine {
     fn quiesce(
         &self,
         board: &mut Board,
-        mut alpha: i32,
-        beta: i32,
+        mut alpha: i16,
+        beta: i16,
         nodes: &mut usize,
-    ) -> i32 {
+    ) -> i16 {
         *nodes += 1;
         let stand_pat = self.static_eval(board);
 
@@ -535,7 +562,7 @@ impl Engine {
         for m in moves {
             if let Some(cap) = m.capture {
                 // Delta pruning
-                if stand_pat + cap as i32 + 200 < alpha && !self.is_prom_move(&m) {
+                if stand_pat + cap as i16 + 200 < alpha && !self.is_prom_move(&m) {
                     continue;
                 }
 
@@ -554,7 +581,7 @@ impl Engine {
         alpha
     }
 
-    pub fn static_eval(&self, board: &Board) -> i32 {
+    pub fn static_eval(&self, board: &Board) -> i16 {
         let mut mg_score_w = 0;
         let mut eg_score_w = 0;
         let mut mg_score_b = 0;
@@ -598,7 +625,7 @@ impl Engine {
         -(mg_score * mg_phase + eg_score * eg_phase) / 24
     }
 
-    fn score_game_phase_pieces(&self, piece: Piece) -> i32 {
+    fn score_game_phase_pieces(&self, piece: Piece) -> i16 {
         match piece {
             Piece::Pawn => 0,
             Piece::Knight => 1,
@@ -609,7 +636,7 @@ impl Engine {
         }
     }
 
-    fn get_mg_score(&self, piece: (Color, Piece), square: usize) -> i32 {
+    fn get_mg_score(&self, piece: (Color, Piece), square: usize) -> i16 {
         match piece {
             (Color::Black, Piece::Pawn) => self.mg_pawn_table_b[square],
             (Color::Black, Piece::Knight) => self.mg_knight_table_b[square],
@@ -626,7 +653,7 @@ impl Engine {
         }
     }
 
-    fn get_eg_score(&self, piece: (Color, Piece), square: usize) -> i32 {
+    fn get_eg_score(&self, piece: (Color, Piece), square: usize) -> i16 {
         match piece {
             (Color::Black, Piece::Pawn) => self.eg_pawn_table_b[square],
             (Color::Black, Piece::Knight) => self.eg_knight_table_b[square],

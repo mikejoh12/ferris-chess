@@ -58,7 +58,7 @@ fn mate_in_1_for_white_using_queen_with_capture() {
 
 #[test]
 fn mate_in_2_for_white_using_queen() {
-    let mut board = Board::from_fen("4N1k1/5pp1/3N3p/8/8/3B4/5Q2/2K5 w - - 0 1");
+    let mut board = Board::from_fen("4Nnk1/5ppb/3N3p/8/8/8/5Q2/2K5 w - - 0 1");
     let mut engine = Engine::new();
     let go_input = "go wtime 10000 btime 10000 movestogo 10".to_string();
     let go_cmd = GoCommand::new(&go_input);
