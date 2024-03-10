@@ -439,13 +439,13 @@ impl Engine {
         for m in &moves {
             board.make_move(&m);
             if !board.is_king_left_in_check() {
-                let ab_score = -self.alpha_beta(board, depth - 1, 1, -beta, -alpha, &mut nodes);
+                let ab_score = -self.alpha_beta(board, depth, 1, -beta, -alpha, &mut nodes);
                 legal_moves += 1;
 
                 if ab_score > alpha {
                     let score = match (ab_score.abs_diff(MATED_VALUE) < 50, ab_score.abs_diff(-MATED_VALUE) < 50) {
-                        (true, false) => Score::Mate(MATED_VALUE.abs_diff(ab_score) as i16),
-                        (false, true) => Score::Mate((-MATED_VALUE).abs_diff(ab_score) as i16),
+                        (true, false) => Score::Mate((MATED_VALUE - ab_score - 1) / 2),
+                        (false, true) => Score::Mate(((-MATED_VALUE) - ab_score + 1) / 2),
                         _ => Score::CentiPawns(ab_score),
                     };
 
