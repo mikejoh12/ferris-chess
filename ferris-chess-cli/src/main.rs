@@ -2,7 +2,11 @@ pub mod uci;
 use crate::uci::Uci;
 use clap::{Parser, Subcommand};
 use ferris_chess_board::{self, perft::perft, Board};
-use std::{process, time::Instant};
+use std::cell::RefCell;
+use std::io::Write;
+use std::process;
+use std::sync::{Arc, Mutex};
+use std::{fs::File, io, panic, time::Instant};
 
 #[derive(Subcommand, Debug)]
 enum Command {
@@ -33,7 +37,30 @@ struct Args {
     fen: String,
 }
 
+/// Redirects error messages from stderr to stdout and writes them to a file.
+/// This allows them to be read when engine runs as a process under a GUI such as Cutechess.
+fn init_logging() {
+    let file = Arc::new(Mutex::new(
+        File::create("error.log").expect("Failed to create error.log"),
+    ));
+    let stderr = io::stderr();
+    let stderr_lock = Arc::new(Mutex::new(RefCell::new(stderr)));
+
+    // Redirect stderr to file and stdout
+    let _ = panic::take_hook();
+    let file_clone = Arc::clone(&file);
+    panic::set_hook(Box::new(move |info| {
+        let stderr_lock = stderr_lock.lock().unwrap();
+        let _ = writeln!(stderr_lock.borrow_mut(), "{}", info);
+        let mut file_lock = file_clone.lock().unwrap();
+        let _ = writeln!(&mut *file_lock, "{}", info); // Redirect to file
+        let _ = writeln!(&mut io::stdout(), "{}", info); // Redirect to stdout
+    }));
+}
+
 fn main() {
+    init_logging();
+
     let args = Args::parse();
     let mut board = ferris_chess_board::Board::from_fen(&args.fen);
 

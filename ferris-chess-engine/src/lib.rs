@@ -1,10 +1,12 @@
 use ferris_chess_board::{Board, Color, MoveData, MoveType, Piece};
 use regex::Regex;
 use std::{
-    collections::HashMap, thread, time::{Duration, Instant}
+    collections::HashMap,
+    thread,
+    time::{Duration, Instant},
 };
 
-pub const MATED_VALUE: i16 = i16::MIN / 2; 
+pub const MATED_VALUE: i16 = i16::MIN / 2;
 
 pub struct GoCommand {
     wtime: usize,
@@ -25,15 +27,33 @@ impl GoCommand {
         let movestogo_re = Regex::new(r"movestogo \d*").unwrap();
 
         if let Some(wtime_match) = wtime_re.find(&go_input) {
-            wtime = wtime_match.as_str().split_ascii_whitespace().nth(1).unwrap().parse().unwrap();
+            wtime = wtime_match
+                .as_str()
+                .split_ascii_whitespace()
+                .nth(1)
+                .unwrap()
+                .parse()
+                .unwrap();
         }
 
         if let Some(btime_match) = btime_re.find(&go_input) {
-            btime = btime_match.as_str().split_ascii_whitespace().nth(1).unwrap().parse().unwrap();
+            btime = btime_match
+                .as_str()
+                .split_ascii_whitespace()
+                .nth(1)
+                .unwrap()
+                .parse()
+                .unwrap();
         }
 
         if let Some(movestogo_match) = movestogo_re.find(&go_input) {
-            movestogo = movestogo_match.as_str().split_ascii_whitespace().nth(1).unwrap().parse().unwrap();
+            movestogo = movestogo_match
+                .as_str()
+                .split_ascii_whitespace()
+                .nth(1)
+                .unwrap()
+                .parse()
+                .unwrap();
         }
 
         GoCommand {
@@ -77,11 +97,13 @@ pub struct Engine {
     stop_time: Instant,
 }
 
+#[derive(PartialEq)]
 enum Score {
     CentiPawns(i16),
     Mate(i16),
 }
 
+#[derive(PartialEq)]
 pub struct SearchInfo {
     depth: usize,
     nodes: usize,
@@ -115,7 +137,7 @@ fn eg_piece_weight(piece: Piece) -> i16 {
 fn mirror_table(t: &[i16; 64]) -> [i16; 64] {
     let mut mirrored: [i16; 64] = [0; 64];
     for i in 0..64 {
-        mirrored[i] = t[i^56];
+        mirrored[i] = t[i ^ 56];
     }
     mirrored
 }
@@ -371,10 +393,13 @@ impl Engine {
 
     fn init_time(&mut self, board: &Board, go_cmd: &GoCommand) {
         self.stop_time = Instant::now()
-            + Duration::from_millis(match board.is_white_to_move {
-                true => go_cmd.wtime - 1000,
-                false => go_cmd.btime - 1000,
-            } as u64 / go_cmd.movestogo as u64)
+            + Duration::from_millis(
+                match board.is_white_to_move {
+                    true => go_cmd.wtime - 1000,
+                    false => go_cmd.btime - 1000,
+                } as u64
+                    / go_cmd.movestogo as u64,
+            )
     }
 
     pub fn iter_deepening(&mut self, board: &mut Board, go_cmd: &GoCommand) -> MoveData {
@@ -383,8 +408,7 @@ impl Engine {
         let mut info: Option<SearchInfo> = None;
 
         for depth in 1..=go_cmd.max_depth {
-            if let Some(search_info) = self.root_alpha_beta(board, depth)
-            {
+            if let Some(search_info) = self.root_alpha_beta(board, depth) {
                 // Add small delay for now to allow multiple infos to be processed by GUI in
                 // first couple of plys. TODO: Add concurrency or asynchronous handling
                 thread::sleep(Duration::from_millis(10));
@@ -395,19 +419,19 @@ impl Engine {
                             "info depth {} nodes {} time {} score cp {}",
                             search_info.depth, search_info.nodes, search_info.time, cp
                         );
-                    },
+                    }
                     Score::Mate(m) => {
                         println!(
                             "info depth {} nodes {} time {} score mate {}",
                             search_info.depth, search_info.nodes, search_info.time, m
-                        ); 
-                    },
+                        );
+                    }
                 }
 
                 info = Some(search_info);
             }
 
-            if self.is_stopped {
+            if self.is_stopped && info != None {
                 break;
             }
         }
@@ -443,7 +467,10 @@ impl Engine {
                 legal_moves += 1;
 
                 if ab_score > alpha {
-                    let score = match (ab_score.abs_diff(MATED_VALUE) < 50, ab_score.abs_diff(-MATED_VALUE) < 50) {
+                    let score = match (
+                        ab_score.abs_diff(MATED_VALUE) < 50,
+                        ab_score.abs_diff(-MATED_VALUE) < 50,
+                    ) {
                         (true, false) => Score::Mate((MATED_VALUE - ab_score - 1) / 2),
                         (false, true) => Score::Mate(((-MATED_VALUE) - ab_score + 1) / 2),
                         _ => Score::CentiPawns(ab_score),
@@ -461,8 +488,9 @@ impl Engine {
             }
             board.unmake_move(&m);
 
-            if self.is_stopped || Instant::now() > self.stop_time {
-                return None
+            // Always complete a search of depth 1
+            if depth > 1 && (self.is_stopped || Instant::now() > self.stop_time) {
+                return None;
             }
         }
 
@@ -537,13 +565,7 @@ impl Engine {
             || m.move_type == MoveType::KnightPromotion
     }
 
-    fn quiesce(
-        &self,
-        board: &mut Board,
-        mut alpha: i16,
-        beta: i16,
-        nodes: &mut usize,
-    ) -> i16 {
+    fn quiesce(&self, board: &mut Board, mut alpha: i16, beta: i16, nodes: &mut usize) -> i16 {
         *nodes += 1;
         let stand_pat = self.static_eval(board);
 
@@ -620,7 +642,7 @@ impl Engine {
         let eg_score = eg_score_w - eg_score_b;
 
         if board.is_white_to_move {
-            return (mg_score * mg_phase + eg_score * eg_phase) / 24
+            return (mg_score * mg_phase + eg_score * eg_phase) / 24;
         }
         -(mg_score * mg_phase + eg_score * eg_phase) / 24
     }

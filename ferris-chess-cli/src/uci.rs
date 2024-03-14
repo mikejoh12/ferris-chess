@@ -93,12 +93,13 @@ impl Uci {
     }
 
     fn handle_position(&mut self, cmd: &String) {
-
-        let mut parts = cmd.split("moves").map(|p|p.trim());
+        let mut parts = cmd.split("moves").map(|p| p.trim());
         let position_cmd = parts.next().unwrap();
 
         if position_cmd == "position startpos" {
-            self.board = Some(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"));
+            self.board = Some(Board::from_fen(
+                "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+            ));
         } else if position_cmd.starts_with("position fen") {
             let fen = cmd.strip_prefix("position fen ").unwrap();
             self.board = Some(Board::from_fen(fen));
@@ -114,7 +115,6 @@ impl Uci {
                 }
             }
         }
-
     }
 
     fn handle_go(&mut self, cmd: &String) {
