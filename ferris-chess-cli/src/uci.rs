@@ -4,15 +4,13 @@ use ferris_chess_board::{Board, MoveData};
 use ferris_chess_engine::{Engine, GoCommand};
 
 pub struct Uci {
-    board: Option<Board>,
     engine: Engine,
 }
 
 impl Uci {
     pub fn new() -> Self {
         Uci {
-            board: None,
-            engine: Engine::new(),
+            engine: Engine::new("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"),
         }
     }
 
@@ -97,22 +95,20 @@ impl Uci {
         let position_cmd = parts.next().unwrap();
 
         if position_cmd == "position startpos" {
-            self.board = Some(Board::from_fen(
+            self.engine.board = Board::from_fen(
                 "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-            ));
+            );
         } else if position_cmd.starts_with("position fen") {
             let fen = cmd.strip_prefix("position fen ").unwrap();
-            self.board = Some(Board::from_fen(fen));
+            self.engine.board = Board::from_fen(fen);
         } else {
             panic!("Invalid position command");
         }
 
-        if let Some(board) = &mut self.board {
-            if let Some(m) = parts.next() {
-                for uci_move in m.split_ascii_whitespace() {
-                    let m = MoveData::from_uci(&uci_move.to_string(), board);
-                    board.make_move(&m);
-                }
+        if let Some(m) = parts.next() {
+            for uci_move in m.split_ascii_whitespace() {
+                let m = MoveData::from_uci(&uci_move.to_string(), &self.engine.board);
+                self.engine.board.make_move(&m);
             }
         }
     }
@@ -136,17 +132,15 @@ impl Uci {
         }
         */
 
-        match &mut self.board {
-            Some(board) => {
-                let go_cmd = GoCommand::new(cmd);
-                let m = self.engine.iter_deepening(board, &go_cmd);
 
-                let uci_move = m.to_uci_move(board);
-                println!("bestmove {}", uci_move);
-            }
-            None => panic!("Got go command without board initialized"),
+        let go_cmd = GoCommand::new(cmd);
+        let m = self.engine.iter_deepening(&go_cmd);
+
+        let uci_move = m.to_uci_move(&self.engine.board);
+        println!("bestmove {}", uci_move);
+
         }
-    }
+
 
     fn handle_stop(&mut self) {
         self.engine.stop();

@@ -31,6 +31,16 @@ enum OccupiedStatus {
     Unoccupied,
 }
 
+pub fn get_idx_from_square(uci_pos: &str) -> usize {
+    let file = &uci_pos[0..1];
+    let rank = &uci_pos[1..2];
+
+    let files: [&str; 8] = ["a", "b", "c", "d", "e", "f", "g", "h"];
+    let file_idx: usize = files.iter().position(|&f| f == file).unwrap();
+    let rank_idx: usize = (rank.parse::<isize>().unwrap() - 1) as usize;
+    rank_idx * 8 + file_idx
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct MoveData {
     pub start_pos: usize,
@@ -82,8 +92,8 @@ pub struct Board {
 
 impl MoveData {
     pub fn from_uci(uci_move: &String, board: &Board) -> Self {
-        let start_pos = board.get_idx_from_square(&uci_move[0..2]);
-        let end_pos = board.get_idx_from_square(&uci_move[2..4]);
+        let start_pos = get_idx_from_square(&uci_move[0..2]);
+        let end_pos = get_idx_from_square(&uci_move[2..4]);
 
         let piece = board.data[start_pos].unwrap().1;
 
@@ -193,6 +203,7 @@ impl MoveData {
         }
         uci_move
     }
+
 }
 
 impl Board {
@@ -376,16 +387,6 @@ impl Board {
             print!("{}{} ({:?}, {:?}) ", from, to, m.piece, m.move_type);
         }
         println!("\n");
-    }
-
-    pub fn get_idx_from_square(&self, uci_pos: &str) -> usize {
-        let file = &uci_pos[0..1];
-        let rank = &uci_pos[1..2];
-
-        let files: [&str; 8] = ["a", "b", "c", "d", "e", "f", "g", "h"];
-        let file_idx: usize = files.iter().position(|&f| f == file).unwrap();
-        let rank_idx: usize = (rank.parse::<isize>().unwrap() - 1) as usize;
-        rank_idx * 8 + file_idx
     }
 
     fn is_unoccupied(&self, pos: usize) -> bool {
