@@ -6,6 +6,9 @@ use std::{
     time::{Duration, Instant},
 };
 
+mod transposition_table;
+use transposition_table::TranspositonTable;
+
 pub const MATED_VALUE: i16 = i16::MIN / 2;
 
 pub struct GoCommand {
@@ -97,6 +100,7 @@ pub struct Engine {
     stop_time: Instant,
 
     pub board: Board,
+    t_table: TranspositonTable,
 }
 
 #[derive(PartialEq)]
@@ -356,6 +360,8 @@ impl Engine {
             ((Piece::Pawn, Piece::King), 29),
         ]);
 
+        let t_table = TranspositonTable::new();
+
         Engine {
             mg_pawn_table_w: mirror_table(&mg_pawn_table_b),
             eg_pawn_table_w: mirror_table(&eg_pawn_table_b),
@@ -385,6 +391,7 @@ impl Engine {
             is_stopped: false,
             stop_time: Instant::now(),
             board,
+            t_table,
         }
     }
 
@@ -399,9 +406,9 @@ impl Engine {
     fn init_time(&mut self, go_cmd: &GoCommand) {
         self.stop_time = Instant::now()
             + Duration::from_millis(
-                match self.board.is_white_to_move {
-                    true => go_cmd.wtime - 1000,
-                    false => go_cmd.btime - 1000,
+                match self.board.black_to_move {
+                    false => go_cmd.wtime - 1000,
+                    true => go_cmd.btime - 1000,
                 } as u64
                     / go_cmd.movestogo as u64,
             )
@@ -645,10 +652,10 @@ impl Engine {
         let mg_score = mg_score_w - mg_score_b;
         let eg_score = eg_score_w - eg_score_b;
 
-        if self.board.is_white_to_move {
-            return (mg_score * mg_phase + eg_score * eg_phase) / 24;
+        if self.board.black_to_move {
+            return -(mg_score * mg_phase + eg_score * eg_phase) / 24;
         }
-        -(mg_score * mg_phase + eg_score * eg_phase) / 24
+        (mg_score * mg_phase + eg_score * eg_phase) / 24
     }
 
     fn score_game_phase_pieces(&self, piece: Piece) -> i16 {

@@ -4,6 +4,7 @@ use std::{collections::HashSet, vec};
 mod cache;
 pub mod perft;
 mod squares;
+mod zobrist;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Color {
@@ -74,7 +75,7 @@ struct IrreversibleBoardState {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Board {
     cache: cache::Cache,
-    pub is_white_to_move: bool,
+    pub black_to_move: bool,
     pub data: [Option<(Color, Piece)>; 64],
     pub castling_w_00: bool,
     pub castling_w_000: bool,
@@ -274,9 +275,9 @@ impl Board {
         }
 
         let side_to_move = sections.next().expect("Invalid FEN string - side to move");
-        let is_white_to_move = match side_to_move {
-            "w" => true,
-            "b" => false,
+        let black_to_move = match side_to_move {
+            "b" => true,
+            "w" => false,
             _ => panic!("FEN string side to move data invalid"),
         };
 
@@ -324,7 +325,7 @@ impl Board {
 
         Board {
             cache,
-            is_white_to_move,
+            black_to_move,
             data,
             castling_w_00,
             castling_w_000,
@@ -367,7 +368,7 @@ impl Board {
             print!("\n");
         }
         println!("  --------\n  abcdefgh\n");
-        println!("Is white to move: {}", self.is_white_to_move);
+        println!("Black to move: {}", self.black_to_move);
         println!(
             "Castling ability -> K: {}, Q: {}, k: {}, q: {}",
             self.castling_w_00, self.castling_w_000, self.castling_b_00, self.castling_b_000,
@@ -395,9 +396,9 @@ impl Board {
 
     fn get_occupied_status(&self, pos: usize) -> OccupiedStatus {
         if let Some(p) = self.data[pos] {
-            match (self.is_white_to_move, p.0) {
-                (true, Color::White) => OccupiedStatus::OccupiedOwnColor,
-                (false, Color::Black) => OccupiedStatus::OccupiedOwnColor,
+            match (self.black_to_move, p.0) {
+                (true, Color::Black) => OccupiedStatus::OccupiedOwnColor,
+                (false, Color::White) => OccupiedStatus::OccupiedOwnColor,
                 _ => OccupiedStatus::OccupiedOpponentColor,
             }
         } else {
@@ -593,12 +594,12 @@ impl Board {
                     self.update_pieces(instr);
 
                     // Handle en passant capture
-                    if self.is_white_to_move {
-                        self.data[instr.end_pos - 8] = None;
-                        self.pieces_b.remove(&(instr.end_pos - 8));
-                    } else {
+                    if self.black_to_move {
                         self.data[instr.end_pos + 8] = None;
                         self.pieces_w.remove(&(instr.end_pos + 8));
+                    } else {
+                        self.data[instr.end_pos - 8] = None;
+                        self.pieces_b.remove(&(instr.end_pos - 8));
                     }
                     self.half_moves = 0;
                 }
@@ -632,15 +633,15 @@ impl Board {
         } else {
             panic!("Attempting to make move from square with no piece");
         }
-        if !self.is_white_to_move {
+        if self.black_to_move {
             self.full_moves += 1;
         }
 
         // Set en passant target square on double pawn push
         if instr.piece == Piece::Pawn && instr.start_pos.abs_diff(instr.end_pos) == 16 {
-            self.ep_target = match self.is_white_to_move {
-                true => Some(instr.start_pos + 8),
-                false => Some(instr.start_pos - 8),
+            self.ep_target = match self.black_to_move {
+                false => Some(instr.start_pos + 8),
+                true => Some(instr.start_pos - 8),
             }
         } else {
             self.ep_target = None;
@@ -648,44 +649,44 @@ impl Board {
 
         // Castling
         if instr.piece == Piece::King {
-            if self.is_white_to_move {
-                self.castling_w_00 = false;
-                self.castling_w_000 = false;
-            } else {
+            if self.black_to_move {
                 self.castling_b_00 = false;
                 self.castling_b_000 = false;
+            } else {
+                self.castling_w_00 = false;
+                self.castling_w_000 = false;
             }
         }
 
         if instr.piece == Piece::Rook {
             match (
-                self.is_white_to_move,
+                self.black_to_move,
                 instr.start_pos == 0,
                 instr.start_pos == 7,
                 instr.start_pos == 56,
                 instr.start_pos == 63,
             ) {
-                (true, true, _, _, _) => self.castling_w_000 = false,
-                (true, _, true, _, _) => self.castling_w_00 = false,
-                (false, _, _, true, _) => self.castling_b_000 = false,
-                (false, _, _, _, true) => self.castling_b_00 = false,
+                (false, true, _, _, _) => self.castling_w_000 = false,
+                (false, _, true, _, _) => self.castling_w_00 = false,
+                (true, _, _, true, _) => self.castling_b_000 = false,
+                (true, _, _, _, true) => self.castling_b_00 = false,
                 _ => (),
             }
         }
 
-        self.is_white_to_move = !self.is_white_to_move;
+        self.black_to_move = !self.black_to_move;
     }
 
     fn update_pieces(&mut self, move_data: &MoveData) {
-        match self.is_white_to_move {
-            true => {
+        match self.black_to_move {
+            false => {
                 self.pieces_w.insert(move_data.end_pos);
                 self.pieces_w.remove(&move_data.start_pos);
                 if move_data.capture != None {
                     self.pieces_b.remove(&move_data.end_pos);
                 }
             }
-            false => {
+            true => {
                 self.pieces_b.insert(move_data.end_pos);
                 self.pieces_b.remove(&move_data.start_pos);
                 if move_data.capture != None {
@@ -696,15 +697,15 @@ impl Board {
     }
 
     fn unmake_update_pieces(&mut self, move_data: &MoveData) {
-        match self.is_white_to_move {
-            true => {
+        match self.black_to_move {
+            false => {
                 self.pieces_w.insert(move_data.start_pos);
                 self.pieces_w.remove(&move_data.end_pos);
                 if move_data.capture != None {
                     self.pieces_b.insert(move_data.end_pos);
                 }
             }
-            false => {
+            true => {
                 self.pieces_b.insert(move_data.start_pos);
                 self.pieces_b.remove(&move_data.end_pos);
                 if move_data.capture != None {
@@ -719,15 +720,15 @@ impl Board {
 
         if let Some(s) = irreversible_state {
             // Reverse color to move since we are going back one move
-            self.is_white_to_move = !self.is_white_to_move;
+            self.black_to_move = !self.black_to_move;
 
-            let color_to_move = match self.is_white_to_move {
-                true => Color::White,
-                false => Color::Black,
-            };
-            let opponent_color = match self.is_white_to_move {
-                true => Color::Black,
+            let color_to_move = match self.black_to_move {
                 false => Color::White,
+                true => Color::Black,
+            };
+            let opponent_color = match self.black_to_move {
+                false => Color::Black,
+                true => Color::White,
             };
 
             // Restore the "irreversible" board state
@@ -739,7 +740,7 @@ impl Board {
             self.half_moves = s.half_moves;
 
             // Rewind the full move counter when reversing a black move
-            if !self.is_white_to_move {
+            if self.black_to_move {
                 self.full_moves -= 1;
             }
 
@@ -756,10 +757,11 @@ impl Board {
                     self.unmake_update_pieces(last_move);
 
                     // Update king pos
-                    if last_move.piece == Piece::King && self.is_white_to_move {
-                        self.king_pos_w = Some(last_move.start_pos);
-                    } else if last_move.piece == Piece::King && !self.is_white_to_move {
+                    if last_move.piece == Piece::King && self.black_to_move {
                         self.king_pos_b = Some(last_move.start_pos);
+
+                    } else if last_move.piece == Piece::King {
+                        self.king_pos_w = Some(last_move.start_pos);
                     }
                 }
                 MoveType::Castling => {
@@ -811,14 +813,14 @@ impl Board {
                     self.data[last_move.end_pos] = None;
 
                     // Handle captured ep piece separately since it's in a different square
-                    match self.is_white_to_move {
-                        true => {
+                    match self.black_to_move {
+                        false => {
                             self.pieces_w.insert(last_move.start_pos);
                             self.pieces_w.remove(&last_move.end_pos);
                             self.data[last_move.end_pos - 8] = Some((Color::Black, Piece::Pawn));
                             self.pieces_b.insert(last_move.end_pos - 8);
                         }
-                        false => {
+                        true => {
                             self.pieces_b.insert(last_move.start_pos);
                             self.pieces_b.remove(&last_move.end_pos);
                             self.data[last_move.end_pos + 8] = Some((Color::White, Piece::Pawn));
@@ -849,13 +851,13 @@ impl Board {
     }
 
     fn unmake_promotion_move(&mut self, last_move: &MoveData) {
-        let color_to_move = match self.is_white_to_move {
-            true => Color::White,
-            false => Color::Black,
-        };
-        let opponent_color = match self.is_white_to_move {
-            true => Color::Black,
+        let color_to_move = match self.black_to_move {
             false => Color::White,
+            true => Color::Black,
+        };
+        let opponent_color = match self.black_to_move {
+            false => Color::Black,
+            true => Color::White,
         };
 
         self.data[last_move.start_pos] = Some((color_to_move, Piece::Pawn));
@@ -1284,7 +1286,38 @@ impl Board {
     fn get_castling_moves(&self) -> Vec<MoveData> {
         let mut moves: Vec<MoveData> = vec![];
 
-        if self.is_white_to_move {
+        if self.black_to_move {
+            if self.data[Square::A8] == Some((Color::Black, Piece::Rook)) && self.castling_b_000 {
+                if [57, 58, 59].iter().all(|s| self.data[*s] == None)
+                    && [58, 59, 60]
+                        .iter()
+                        .all(|s| !self.is_position_threatened(*s, Color::White))
+                {
+                    moves.push(MoveData {
+                        start_pos: 60,
+                        end_pos: 58,
+                        piece: Piece::King,
+                        move_type: MoveType::Castling,
+                        capture: None,
+                    })
+                }
+            }
+            if self.data[Square::H8] == Some((Color::Black, Piece::Rook)) && self.castling_b_00 {
+                if [61, 62].iter().all(|s| self.data[*s] == None)
+                    && [60, 61, 62]
+                        .iter()
+                        .all(|s| !self.is_position_threatened(*s, Color::White))
+                {
+                    moves.push(MoveData {
+                        start_pos: 60,
+                        end_pos: 62,
+                        piece: Piece::King,
+                        move_type: MoveType::Castling,
+                        capture: None,
+                    })
+                }
+            }
+        } else {
             if self.castling_w_000 {
                 if self.data[Square::A1] == Some((Color::White, Piece::Rook))
                     && [1, 2, 3].iter().all(|s| self.data[*s] == None)
@@ -1316,37 +1349,6 @@ impl Board {
                     })
                 }
             }
-        } else {
-            if self.data[Square::A8] == Some((Color::Black, Piece::Rook)) && self.castling_b_000 {
-                if [57, 58, 59].iter().all(|s| self.data[*s] == None)
-                    && [58, 59, 60]
-                        .iter()
-                        .all(|s| !self.is_position_threatened(*s, Color::White))
-                {
-                    moves.push(MoveData {
-                        start_pos: 60,
-                        end_pos: 58,
-                        piece: Piece::King,
-                        move_type: MoveType::Castling,
-                        capture: None,
-                    })
-                }
-            }
-            if self.data[Square::H8] == Some((Color::Black, Piece::Rook)) && self.castling_b_00 {
-                if [61, 62].iter().all(|s| self.data[*s] == None)
-                    && [60, 61, 62]
-                        .iter()
-                        .all(|s| !self.is_position_threatened(*s, Color::White))
-                {
-                    moves.push(MoveData {
-                        start_pos: 60,
-                        end_pos: 62,
-                        piece: Piece::King,
-                        move_type: MoveType::Castling,
-                        capture: None,
-                    })
-                }
-            }
         }
 
         moves
@@ -1354,9 +1356,9 @@ impl Board {
 
     pub fn get_pseudo_legal_moves(&mut self) -> Vec<MoveData> {
         let mut moves: Vec<MoveData> = Vec::with_capacity(50);
-        let positions: &HashSet<usize> = match self.is_white_to_move {
-            true => &self.pieces_w,
-            false => &self.pieces_b,
+        let positions: &HashSet<usize> = match self.black_to_move {
+            false => &self.pieces_w,
+            true => &self.pieces_b,
         };
 
         for pos in positions {
@@ -1380,29 +1382,29 @@ impl Board {
     }
 
     pub fn is_player_mated(&self) -> bool {
-        let king_pos = match self.is_white_to_move {
-            true => self.king_pos_w,
-            false => self.king_pos_b,
+        let king_pos = match self.black_to_move {
+            false => self.king_pos_w,
+            true => self.king_pos_b,
         }
         .expect("King position missing on board");
 
-        let opponent_color = match self.is_white_to_move {
-            true => Color::Black,
-            false => Color::White,
+        let opponent_color = match self.black_to_move {
+            false => Color::Black,
+            true => Color::White,
         };
         self.is_position_threatened(king_pos, opponent_color)
     }
 
     pub fn is_king_left_in_check(&self) -> bool {
-        let king_pos = match self.is_white_to_move {
-            true => self.king_pos_b,
-            false => self.king_pos_w,
+        let king_pos = match self.black_to_move {
+            false => self.king_pos_b,
+            true => self.king_pos_w,
         }
         .expect("King position missing on board");
 
-        let threat_color = match self.is_white_to_move {
-            true => Color::White,
-            false => Color::Black,
+        let threat_color = match self.black_to_move {
+            false => Color::White,
+            true => Color::Black,
         };
         self.is_position_threatened(king_pos, threat_color)
     }
