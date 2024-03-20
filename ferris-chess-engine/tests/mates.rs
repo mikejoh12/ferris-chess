@@ -9,9 +9,7 @@ fn mate_in_1_for_black_using_rooks_() {
     let go_input = "go wtime 10000 btime 10000 movestogo 10".to_string();
 
     let go_cmd = GoCommand::new(&go_input);
-    let result = engine
-        .iter_deepening(&go_cmd)
-        .to_uci_move(&engine.board);
+    let result = engine.iter_deepening(&go_cmd).to_uci_move(&engine.board);
     assert_eq!(result, "b6b1".to_string());
 }
 
@@ -21,9 +19,7 @@ fn mate_in_1_for_white_using_bishop_queen() {
     let go_input = "go wtime 10000 btime 10000 movestogo 10".to_string();
 
     let go_cmd = GoCommand::new(&go_input);
-    let result = engine
-        .iter_deepening(&go_cmd)
-        .to_uci_move(&engine.board);
+    let result = engine.iter_deepening(&go_cmd).to_uci_move(&engine.board);
     assert_eq!(result, "g7c7".to_string());
 }
 
@@ -33,9 +29,7 @@ fn mate_in_1_for_black_using_rooks_with_capture() {
     let go_input = "go wtime 10000 btime 10000 movestogo 10".to_string();
 
     let go_cmd = GoCommand::new(&go_input);
-    let result = engine
-        .iter_deepening(&go_cmd)
-        .to_uci_move(&engine.board);
+    let result = engine.iter_deepening(&go_cmd).to_uci_move(&engine.board);
     assert_eq!(result, "c6c1".to_string());
 }
 
@@ -45,9 +39,7 @@ fn mate_in_1_for_white_using_queen_with_capture() {
     let go_input = "go wtime 10000 btime 10000 movestogo 10".to_string();
 
     let go_cmd = GoCommand::new(&go_input);
-    let result = engine
-        .iter_deepening(&go_cmd)
-        .to_uci_move(&engine.board);
+    let result = engine.iter_deepening(&go_cmd).to_uci_move(&engine.board);
     assert_eq!(result, "g1a7".to_string());
 }
 
@@ -61,11 +53,11 @@ fn mate_in_2_for_white_using_queen() {
     assert_eq!(w_move_1.to_uci_move(&engine.board), "f2f7".to_string());
     engine.board.make_move(&w_move_1);
 
-    let b_move_1 = engine.iter_deepening( &go_cmd);
+    let b_move_1 = engine.iter_deepening(&go_cmd);
     assert_eq!(b_move_1.to_uci_move(&engine.board), "g8h8".to_string());
     engine.board.make_move(&b_move_1);
 
-    let w_move_2 = engine.iter_deepening( &go_cmd);
+    let w_move_2 = engine.iter_deepening(&go_cmd);
     assert_eq!(w_move_2.to_uci_move(&engine.board), "f7g7".to_string());
 }
 

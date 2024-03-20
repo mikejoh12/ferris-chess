@@ -4,11 +4,10 @@ struct TTableData {
 }
 
 pub struct TranspositonTable {
-    data: Vec<TTableData>
+    data: Vec<TTableData>,
 }
 
 impl TranspositonTable {
-
     pub fn new() -> Self {
         let data: Vec<TTableData> = Vec::with_capacity(100_000);
 

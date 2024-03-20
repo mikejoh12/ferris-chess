@@ -25,6 +25,39 @@ pub enum Piece {
     King = 10000,
 }
 
+#[rustfmt::skip]
+#[derive(Debug, PartialEq, Clone, Copy)]
+enum BoardFile { A,B,C,D,E,F,G,H }
+
+impl BoardFile {
+    pub fn from_square(square: usize) -> Self {
+        match square % 8 {
+            0 => BoardFile::A,
+            1 => BoardFile::B,
+            2 => BoardFile::C,
+            3 => BoardFile::D,
+            4 => BoardFile::E,
+            5 => BoardFile::F,
+            6 => BoardFile::G,
+            7 => BoardFile::H,
+            _ => panic!("Square should map to BoardFile")
+        }
+    }
+
+    pub fn to_usize(&self) -> usize {
+        match *self {
+            BoardFile::A => 0,
+            BoardFile::B => 1,
+            BoardFile::C => 2,
+            BoardFile::D => 3,
+            BoardFile::E => 4,
+            BoardFile::F => 5,
+            BoardFile::G => 6,
+            BoardFile::H => 7,
+        }
+    }
+}
+
 #[derive(PartialEq)]
 enum OccupiedStatus {
     OccupiedOwnColor,
@@ -69,7 +102,7 @@ struct IrreversibleBoardState {
     castling_b_00: bool,
     castling_b_000: bool,
     half_moves: usize,
-    ep_target: Option<usize>,
+    ep_target: Option<BoardFile>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -77,11 +110,11 @@ pub struct Board {
     cache: cache::Cache,
     pub black_to_move: bool,
     pub data: [Option<(Color, Piece)>; 64],
-    pub castling_w_00: bool,
-    pub castling_w_000: bool,
-    pub castling_b_00: bool,
-    pub castling_b_000: bool,
-    pub ep_target: Option<usize>,
+    castling_w_00: bool,
+    castling_w_000: bool,
+    castling_b_00: bool,
+    castling_b_000: bool,
+    ep_target: Option<BoardFile>,
     pub half_moves: usize,
     pub full_moves: usize,
     king_pos_w: Option<usize>,
@@ -122,8 +155,10 @@ impl MoveData {
                     };
                 }
 
-                if let Some(ep) = board.ep_target {
-                    if ep == end_pos {
+                if let Some(ep_file) = &board.ep_target {
+                    let end_rank_idx = end_pos % 8;
+
+                    if *ep_file == BoardFile::from_square(end_pos) && ((board.black_to_move && end_rank_idx == 2) || (!board.black_to_move && end_rank_idx == 5)) {
                         return MoveData {
                             start_pos,
                             end_pos,
@@ -204,7 +239,6 @@ impl MoveData {
         }
         uci_move
     }
-
 }
 
 impl Board {
@@ -292,22 +326,22 @@ impl Board {
         let en_passant_target_str = sections.next().expect("Invalid FEN string - en passant");
         let ep_target = match en_passant_target_str {
             "-" => None,
-            "a3" => Some(Square::A3),
-            "b3" => Some(Square::B3),
-            "c3" => Some(Square::C3),
-            "d3" => Some(Square::D3),
-            "e3" => Some(Square::E3),
-            "f3" => Some(Square::F3),
-            "g3" => Some(Square::G3),
-            "h3" => Some(Square::H3),
-            "a6" => Some(Square::A6),
-            "b6" => Some(Square::B6),
-            "c6" => Some(Square::C6),
-            "d6" => Some(Square::D6),
-            "e6" => Some(Square::E6),
-            "f6" => Some(Square::F6),
-            "g6" => Some(Square::G6),
-            "h6" => Some(Square::H6),
+            "a3" => Some(BoardFile::A),
+            "b3" => Some(BoardFile::B),
+            "c3" => Some(BoardFile::C),
+            "d3" => Some(BoardFile::D),
+            "e3" => Some(BoardFile::E),
+            "f3" => Some(BoardFile::F),
+            "g3" => Some(BoardFile::G),
+            "h3" => Some(BoardFile::H),
+            "a6" => Some(BoardFile::A),
+            "b6" => Some(BoardFile::B),
+            "c6" => Some(BoardFile::C),
+            "d6" => Some(BoardFile::D),
+            "e6" => Some(BoardFile::E),
+            "f6" => Some(BoardFile::F),
+            "g6" => Some(BoardFile::G),
+            "h6" => Some(BoardFile::H),
             _ => panic!("Invalid FEN string - en passant"),
         };
 
@@ -639,10 +673,7 @@ impl Board {
 
         // Set en passant target square on double pawn push
         if instr.piece == Piece::Pawn && instr.start_pos.abs_diff(instr.end_pos) == 16 {
-            self.ep_target = match self.black_to_move {
-                false => Some(instr.start_pos + 8),
-                true => Some(instr.start_pos - 8),
-            }
+            self.ep_target = Some(BoardFile::from_square(instr.start_pos));
         } else {
             self.ep_target = None;
         }
@@ -759,7 +790,6 @@ impl Board {
                     // Update king pos
                     if last_move.piece == Piece::King && self.black_to_move {
                         self.king_pos_b = Some(last_move.start_pos);
-
                     } else if last_move.piece == Piece::King {
                         self.king_pos_w = Some(last_move.start_pos);
                     }
@@ -971,8 +1001,8 @@ impl Board {
             };
 
             // En passant capture to the left
-            if let Some(i) = self.ep_target {
-                if i == left_capture_pos {
+            if let Some(ep_file) = &self.ep_target {
+                if capture_rank_idx == 5 && *ep_file == BoardFile::from_square(left_capture_pos) {
                     moves.push(MoveData {
                         start_pos: pos,
                         end_pos: left_capture_pos,
@@ -1016,8 +1046,8 @@ impl Board {
                 }
             };
 
-            if let Some(i) = self.ep_target {
-                if i == right_capture_pos {
+            if let Some(ep_file) = &self.ep_target {
+                if  capture_rank_idx == 5 && *ep_file == BoardFile::from_square(right_capture_pos) {
                     moves.push(MoveData {
                         start_pos: pos,
                         end_pos: right_capture_pos,
@@ -1096,8 +1126,8 @@ impl Board {
             };
 
             // En passant capture to the left
-            if let Some(i) = self.ep_target {
-                if i == left_capture_pos {
+            if let Some(ep_file) = &self.ep_target {
+                if capture_rank_idx == 2 && *ep_file == BoardFile::from_square(left_capture_pos) {
                     moves.push(MoveData {
                         start_pos: pos,
                         end_pos: left_capture_pos,
@@ -1143,8 +1173,8 @@ impl Board {
             };
 
             // En passant capture to the right
-            if let Some(i) = self.ep_target {
-                if i == right_capture_pos {
+            if let Some(ep_file) = &self.ep_target {
+                if capture_rank_idx == 2 && *ep_file == BoardFile::from_square(right_capture_pos) {
                     moves.push(MoveData {
                         start_pos: pos,
                         end_pos: right_capture_pos,

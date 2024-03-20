@@ -95,9 +95,8 @@ impl Uci {
         let position_cmd = parts.next().unwrap();
 
         if position_cmd == "position startpos" {
-            self.engine.board = Board::from_fen(
-                "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-            );
+            self.engine.board =
+                Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
         } else if position_cmd.starts_with("position fen") {
             let fen = cmd.strip_prefix("position fen ").unwrap();
             self.engine.board = Board::from_fen(fen);
@@ -132,15 +131,12 @@ impl Uci {
         }
         */
 
-
         let go_cmd = GoCommand::new(cmd);
         let m = self.engine.iter_deepening(&go_cmd);
 
         let uci_move = m.to_uci_move(&self.engine.board);
         println!("bestmove {}", uci_move);
-
-        }
-
+    }
 
     fn handle_stop(&mut self) {
         self.engine.stop();
