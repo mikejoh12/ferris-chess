@@ -4,6 +4,25 @@ mod unmake_move_tests {
     use ferris_chess_board::*;
 
     #[test]
+    fn unmake_white_single_pawn_push() {
+        let mut board = Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+        let starting_board = board.clone();
+
+        let result = board.get_pseudo_legal_moves();
+        let pawn_move = MoveData {
+            start_pos: Square::E2,
+            end_pos: Square::E3,
+            piece: Piece::Pawn,
+            move_type: MoveType::Regular,
+            capture: None,
+        };
+        assert!(result.contains(&pawn_move));
+        board.make_move(&pawn_move);
+        board.unmake_move(&pawn_move);
+        assert_eq!(starting_board, board);
+    }
+
+    #[test]
     fn unmake_white_double_pawn_push() {
         let mut board = Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
         let starting_board = board.clone();

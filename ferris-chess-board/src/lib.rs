@@ -1,4 +1,5 @@
 pub use squares::Square;
+use zobrist::{Castling, Zobrist, ZobristData};
 use std::{collections::HashSet, vec};
 
 mod cache;
@@ -122,6 +123,7 @@ pub struct Board {
     pub pieces_w: HashSet<usize>,
     pub pieces_b: HashSet<usize>,
     irreversible_board_state_stack: Vec<IrreversibleBoardState>,
+    pub zobrist: Zobrist,
 }
 
 impl MoveData {
@@ -373,6 +375,15 @@ impl Board {
             pieces_w,
             pieces_b,
             irreversible_board_state_stack: vec![],
+            zobrist: Zobrist::new(ZobristData {
+                board_data: data,
+                black_to_move,
+                castling_w_00,
+                castling_w_000,
+                castling_b_00,
+                castling_b_000,
+                ep_target,
+            }),
         }
     }
 
@@ -412,6 +423,7 @@ impl Board {
             "Halfmove Clock: {} Fullmove counter: {}",
             self.half_moves, self.full_moves
         );
+        println!("Zobrist key: {}", self.zobrist.hash);
     }
 
     pub fn print_moves(&self, moves: &Vec<MoveData>) {
@@ -554,10 +566,21 @@ impl Board {
             });
 
         if let Some(piece) = self.data[instr.start_pos] {
+            let opponent_color = match self.black_to_move {
+                false => Color::Black,
+                true => Color::White,
+            };
+
             match instr.move_type {
                 MoveType::Regular => {
                     self.data[instr.end_pos] = Some(piece);
                     self.data[instr.start_pos] = None;
+
+                    self.zobrist.invert_piece(instr.start_pos, piece);
+                    self.zobrist.invert_piece(instr.end_pos, piece);
+                    if let Some(cap) = instr.capture {
+                        self.zobrist.invert_piece(instr.end_pos, (opponent_color, cap));
+                    }
 
                     self.update_pieces(instr);
 
@@ -580,6 +603,9 @@ impl Board {
                     self.data[instr.end_pos] = Some(piece);
                     self.data[instr.start_pos] = None;
 
+                    self.zobrist.invert_piece(instr.end_pos, piece);
+                    self.zobrist.invert_piece(instr.start_pos, piece);
+
                     // Update king position in piece list
                     self.update_pieces(instr);
 
@@ -590,6 +616,10 @@ impl Board {
                         Square::C1 => {
                             self.data[Square::D1] = Some((Color::White, Piece::Rook));
                             self.data[Square::A1] = None;
+
+                            self.zobrist.invert_piece(Square::D1, (Color::White, Piece::Rook));
+                            self.zobrist.invert_piece(Square::A1, (Color::White, Piece::Rook));
+
                             self.king_pos_w = Some(Square::C1);
                             self.pieces_w.insert(Square::D1);
                             self.pieces_w.remove(&Square::A1);
@@ -597,6 +627,10 @@ impl Board {
                         Square::G1 => {
                             self.data[Square::F1] = Some((Color::White, Piece::Rook));
                             self.data[Square::H1] = None;
+
+                            self.zobrist.invert_piece(Square::F1, (Color::White, Piece::Rook));
+                            self.zobrist.invert_piece(Square::H1, (Color::White, Piece::Rook));
+
                             self.king_pos_w = Some(Square::G1);
                             self.pieces_w.insert(Square::F1);
                             self.pieces_w.remove(&Square::H1);
@@ -604,6 +638,10 @@ impl Board {
                         Square::C8 => {
                             self.data[Square::D8] = Some((Color::Black, Piece::Rook));
                             self.data[Square::A8] = None;
+
+                            self.zobrist.invert_piece(Square::D8, (Color::Black, Piece::Rook));
+                            self.zobrist.invert_piece(Square::A8, (Color::Black, Piece::Rook));
+
                             self.king_pos_b = Some(Square::C8);
                             self.pieces_b.insert(Square::D8);
                             self.pieces_b.remove(&Square::A8);
@@ -611,6 +649,10 @@ impl Board {
                         Square::G8 => {
                             self.data[Square::F8] = Some((Color::Black, Piece::Rook));
                             self.data[Square::H8] = None;
+
+                            self.zobrist.invert_piece(Square::F8, (Color::Black, Piece::Rook));
+                            self.zobrist.invert_piece(Square::H8, (Color::Black, Piece::Rook));
+
                             self.king_pos_b = Some(Square::G8);
                             self.pieces_b.insert(Square::F8);
                             self.pieces_b.remove(&Square::H8);
@@ -624,15 +666,20 @@ impl Board {
                     self.data[instr.end_pos] = Some(piece);
                     self.data[instr.start_pos] = None;
 
+                    self.zobrist.invert_piece(instr.start_pos, piece);
+                    self.zobrist.invert_piece(instr.end_pos, piece);
+
                     // No capture on the end_pos square during ep
                     self.update_pieces(instr);
 
                     // Handle en passant capture
                     if self.black_to_move {
                         self.data[instr.end_pos + 8] = None;
+                        self.zobrist.invert_piece(instr.end_pos + 8, (Color::White, Piece::Pawn));
                         self.pieces_w.remove(&(instr.end_pos + 8));
                     } else {
                         self.data[instr.end_pos - 8] = None;
+                        self.zobrist.invert_piece(instr.end_pos - 8, (Color::Black, Piece::Pawn));
                         self.pieces_b.remove(&(instr.end_pos - 8));
                     }
                     self.half_moves = 0;
@@ -642,24 +689,48 @@ impl Board {
                 MoveType::QueenPromotion => {
                     self.data[instr.end_pos] = Some((piece.0, Piece::Queen));
                     self.data[instr.start_pos] = None;
+                    self.zobrist.invert_piece(instr.start_pos, (piece.0, Piece::Pawn));
+                    self.zobrist.invert_piece(instr.end_pos, (piece.0, Piece::Queen));
+                    if let Some(cap) = instr.capture {
+                        self.zobrist.invert_piece(instr.end_pos, (opponent_color, cap))
+                    }
+
                     self.half_moves = 0;
                     self.update_pieces(instr);
                 }
                 MoveType::RookPromotion => {
                     self.data[instr.end_pos] = Some((piece.0, Piece::Rook));
                     self.data[instr.start_pos] = None;
+                    self.zobrist.invert_piece(instr.start_pos, (piece.0, Piece::Pawn));
+                    self.zobrist.invert_piece(instr.end_pos, (piece.0, Piece::Rook));
+                    if let Some(cap) = instr.capture {
+                        self.zobrist.invert_piece(instr.end_pos, (opponent_color, cap))
+                    }
+
                     self.half_moves = 0;
                     self.update_pieces(instr);
                 }
                 MoveType::BishopPromotion => {
                     self.data[instr.end_pos] = Some((piece.0, Piece::Bishop));
                     self.data[instr.start_pos] = None;
+                    self.zobrist.invert_piece(instr.start_pos, (piece.0, Piece::Pawn));
+                    self.zobrist.invert_piece(instr.end_pos, (piece.0, Piece::Bishop));
+                    if let Some(cap) = instr.capture {
+                        self.zobrist.invert_piece(instr.end_pos, (opponent_color, cap))
+                    }
+
                     self.half_moves = 0;
                     self.update_pieces(instr);
                 }
                 MoveType::KnightPromotion => {
                     self.data[instr.end_pos] = Some((piece.0, Piece::Knight));
                     self.data[instr.start_pos] = None;
+                    self.zobrist.invert_piece(instr.start_pos, (piece.0, Piece::Pawn));
+                    self.zobrist.invert_piece(instr.end_pos, (piece.0, Piece::Knight));
+                    if let Some(cap) = instr.capture {
+                        self.zobrist.invert_piece(instr.end_pos, (opponent_color, cap))
+                    }
+
                     self.half_moves = 0;
                     self.update_pieces(instr);
                 }
@@ -674,18 +745,36 @@ impl Board {
         // Set en passant target square on double pawn push
         if instr.piece == Piece::Pawn && instr.start_pos.abs_diff(instr.end_pos) == 16 {
             self.ep_target = Some(BoardFile::from_square(instr.start_pos));
+            self.zobrist.invert_ep_file(BoardFile::from_square(instr.start_pos));
         } else {
-            self.ep_target = None;
+            if let Some(ep_file) = self.ep_target {
+                self.zobrist.invert_ep_file(ep_file);
+                self.ep_target = None;
+            }
+
         }
 
         // Castling
         if instr.piece == Piece::King {
             if self.black_to_move {
-                self.castling_b_00 = false;
-                self.castling_b_000 = false;
+                if self.castling_b_00 {
+                    self.castling_b_00 = false;
+                    self.zobrist.invert_castling(Castling::Castlingoo);
+                }
+
+                if self.castling_b_000 {
+                    self.castling_b_000 = false;
+                    self.zobrist.invert_castling(Castling::Castlingooo);
+                }
             } else {
-                self.castling_w_00 = false;
-                self.castling_w_000 = false;
+                if self.castling_w_00 {
+                    self.castling_w_00 = false;
+                    self.zobrist.invert_castling(Castling::CastlingOO);
+                }
+                if self.castling_w_000 {
+                    self.castling_w_000 = false;
+                    self.zobrist.invert_castling(Castling::CastlingOOO);
+                }
             }
         }
 
@@ -697,15 +786,36 @@ impl Board {
                 instr.start_pos == 56,
                 instr.start_pos == 63,
             ) {
-                (false, true, _, _, _) => self.castling_w_000 = false,
-                (false, _, true, _, _) => self.castling_w_00 = false,
-                (true, _, _, true, _) => self.castling_b_000 = false,
-                (true, _, _, _, true) => self.castling_b_00 = false,
+                (false, true, _, _, _) => {
+                    if self.castling_w_000 {
+                        self.castling_w_000 = false;
+                        self.zobrist.invert_castling(Castling::CastlingOOO);
+                    }
+                },
+                (false, _, true, _, _) => {
+                    if self.castling_w_00 {
+                        self.castling_w_00 = false;
+                        self.zobrist.invert_castling(Castling::CastlingOO);
+                    }
+                },
+                (true, _, _, true, _) => {
+                    if self.castling_b_000 {
+                        self.castling_b_000 = false;
+                        self.zobrist.invert_castling(Castling::Castlingooo);
+                    }
+                },
+                (true, _, _, _, true) => {
+                    if self.castling_b_00 {
+                        self.castling_b_00 = false;
+                        self.zobrist.invert_castling(Castling::Castlingoo);
+                    }
+                },
                 _ => (),
             }
         }
 
         self.black_to_move = !self.black_to_move;
+        self.zobrist.invert_black_to_move();
     }
 
     fn update_pieces(&mut self, move_data: &MoveData) {
@@ -752,6 +862,7 @@ impl Board {
         if let Some(s) = irreversible_state {
             // Reverse color to move since we are going back one move
             self.black_to_move = !self.black_to_move;
+            self.zobrist.invert_black_to_move();
 
             let color_to_move = match self.black_to_move {
                 false => Color::White,
@@ -763,11 +874,40 @@ impl Board {
             };
 
             // Restore the "irreversible" board state
-            self.castling_w_00 = s.castling_w_00;
-            self.castling_w_000 = s.castling_w_000;
-            self.castling_b_00 = s.castling_b_00;
-            self.castling_b_000 = s.castling_b_000;
-            self.ep_target = s.ep_target;
+            if self.castling_w_00 != s.castling_w_00 {
+                self.zobrist.invert_castling(Castling::CastlingOO);
+                self.castling_w_00 = s.castling_w_00;
+            }
+
+            if self.castling_w_000 != s.castling_w_000 {
+                self.zobrist.invert_castling(Castling::CastlingOOO);
+                self.castling_w_000 = s.castling_w_000;
+            }
+
+            if self.castling_b_00 != s.castling_b_00 {
+                self.zobrist.invert_castling(Castling::Castlingoo);
+                self.castling_b_00 = s.castling_b_00;
+            }
+
+            if self.castling_b_000 != s.castling_b_000 {
+                self.zobrist.invert_castling(Castling::Castlingooo);
+                self.castling_b_000 = s.castling_b_000;
+            }
+
+            if self.ep_target != s.ep_target {
+                // Switch off previous ep file
+                if let Some(ep_file) = self.ep_target {
+                    self.zobrist.invert_ep_file(ep_file);
+                }
+
+                // Switch on new ep file
+                if let Some(ep_file) = s.ep_target {
+                    self.zobrist.invert_ep_file(ep_file);
+                }
+
+                self.ep_target = s.ep_target;
+            }
+
             self.half_moves = s.half_moves;
 
             // Rewind the full move counter when reversing a black move
@@ -778,9 +918,14 @@ impl Board {
             match last_move.move_type {
                 MoveType::Regular => {
                     self.data[last_move.start_pos] = Some((color_to_move, last_move.piece));
+                    self.zobrist.invert_piece(last_move.start_pos, (color_to_move, last_move.piece));
+                    self.zobrist.invert_piece(last_move.end_pos, (color_to_move, last_move.piece));
+
                     if last_move.capture != None {
                         self.data[last_move.end_pos] =
                             Some((opponent_color, last_move.capture.unwrap()));
+
+                        self.zobrist.invert_piece(last_move.end_pos, (opponent_color, last_move.capture.unwrap()))
                     } else {
                         self.data[last_move.end_pos] = None;
                     }
@@ -804,6 +949,11 @@ impl Board {
                             self.data[Square::E1] = Some((Color::White, Piece::King));
                             self.data[Square::C1] = None;
                             self.data[Square::D1] = None;
+                            self.zobrist.invert_piece(Square::A1, (Color::White, Piece::Rook));
+                            self.zobrist.invert_piece(Square::E1, (Color::White, Piece::King));
+                            self.zobrist.invert_piece(Square::C1, (Color::White, Piece::King));
+                            self.zobrist.invert_piece(Square::D1, (Color::White, Piece::Rook));
+
                             self.pieces_w.remove(&Square::D1);
                             self.pieces_w.insert(Square::A1);
                             self.king_pos_w = Some(Square::E1);
@@ -813,6 +963,11 @@ impl Board {
                             self.data[Square::E1] = Some((Color::White, Piece::King));
                             self.data[Square::F1] = None;
                             self.data[Square::G1] = None;
+                            self.zobrist.invert_piece(Square::H1, (Color::White, Piece::Rook));
+                            self.zobrist.invert_piece(Square::E1, (Color::White, Piece::King));
+                            self.zobrist.invert_piece(Square::F1, (Color::White, Piece::Rook));
+                            self.zobrist.invert_piece(Square::G1, (Color::White, Piece::King));
+
                             self.pieces_w.remove(&Square::F1);
                             self.pieces_w.insert(Square::H1);
                             self.king_pos_w = Some(Square::E1);
@@ -822,6 +977,11 @@ impl Board {
                             self.data[Square::E8] = Some((Color::Black, Piece::King));
                             self.data[Square::C8] = None;
                             self.data[Square::D8] = None;
+                            self.zobrist.invert_piece(Square::A8, (Color::Black, Piece::Rook));
+                            self.zobrist.invert_piece(Square::E8, (Color::Black, Piece::King));
+                            self.zobrist.invert_piece(Square::C8, (Color::Black, Piece::King));
+                            self.zobrist.invert_piece(Square::D8, (Color::Black, Piece::Rook));
+
                             self.pieces_b.remove(&Square::D8);
                             self.pieces_b.insert(Square::A8);
                             self.king_pos_b = Some(Square::E8);
@@ -831,6 +991,11 @@ impl Board {
                             self.data[Square::E8] = Some((Color::Black, Piece::King));
                             self.data[Square::F8] = None;
                             self.data[Square::G8] = None;
+                            self.zobrist.invert_piece(Square::H8, (Color::Black, Piece::Rook));
+                            self.zobrist.invert_piece(Square::E8, (Color::Black, Piece::King));
+                            self.zobrist.invert_piece(Square::F8, (Color::Black, Piece::Rook));
+                            self.zobrist.invert_piece(Square::G8, (Color::Black, Piece::King));
+
                             self.pieces_b.remove(&Square::F8);
                             self.pieces_b.insert(Square::H8);
                             self.king_pos_b = Some(Square::E8);
@@ -841,6 +1006,8 @@ impl Board {
                 MoveType::EnPassant => {
                     self.data[last_move.start_pos] = Some((color_to_move, Piece::Pawn));
                     self.data[last_move.end_pos] = None;
+                    self.zobrist.invert_piece(last_move.start_pos, (color_to_move, Piece::Pawn));
+                    self.zobrist.invert_piece(last_move.end_pos, (color_to_move, Piece::Pawn));
 
                     // Handle captured ep piece separately since it's in a different square
                     match self.black_to_move {
@@ -849,29 +1016,31 @@ impl Board {
                             self.pieces_w.remove(&last_move.end_pos);
                             self.data[last_move.end_pos - 8] = Some((Color::Black, Piece::Pawn));
                             self.pieces_b.insert(last_move.end_pos - 8);
+                            self.zobrist.invert_piece(last_move.end_pos - 8, (Color::Black, Piece::Pawn));
                         }
                         true => {
                             self.pieces_b.insert(last_move.start_pos);
                             self.pieces_b.remove(&last_move.end_pos);
                             self.data[last_move.end_pos + 8] = Some((Color::White, Piece::Pawn));
                             self.pieces_w.insert(last_move.end_pos + 8);
+                            self.zobrist.invert_piece(last_move.end_pos + 8, (Color::White, Piece::Pawn));
                         }
                     }
                 }
                 MoveType::QueenPromotion => {
-                    self.unmake_promotion_move(last_move);
+                    self.unmake_promotion_move(last_move, Piece::Queen);
                     self.unmake_update_pieces(last_move);
                 }
                 MoveType::RookPromotion => {
-                    self.unmake_promotion_move(last_move);
+                    self.unmake_promotion_move(last_move, Piece::Rook);
                     self.unmake_update_pieces(last_move);
                 }
                 MoveType::BishopPromotion => {
-                    self.unmake_promotion_move(last_move);
+                    self.unmake_promotion_move(last_move, Piece::Bishop);
                     self.unmake_update_pieces(last_move);
                 }
                 MoveType::KnightPromotion => {
-                    self.unmake_promotion_move(last_move);
+                    self.unmake_promotion_move(last_move, Piece::Knight);
                     self.unmake_update_pieces(last_move);
                 }
             }
@@ -880,7 +1049,7 @@ impl Board {
         }
     }
 
-    fn unmake_promotion_move(&mut self, last_move: &MoveData) {
+    fn unmake_promotion_move(&mut self, last_move: &MoveData, promo_piece: Piece) {
         let color_to_move = match self.black_to_move {
             false => Color::White,
             true => Color::Black,
@@ -891,8 +1060,12 @@ impl Board {
         };
 
         self.data[last_move.start_pos] = Some((color_to_move, Piece::Pawn));
+        self.zobrist.invert_piece(last_move.start_pos, (color_to_move, Piece::Pawn));
+        self.zobrist.invert_piece(last_move.end_pos, (color_to_move, promo_piece));
+
         if last_move.capture != None {
             self.data[last_move.end_pos] = Some((opponent_color, last_move.capture.unwrap()));
+            self.zobrist.invert_piece(last_move.end_pos, (opponent_color, last_move.capture.unwrap()));
         } else {
             self.data[last_move.end_pos] = None;
         }

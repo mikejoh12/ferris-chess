@@ -1,9 +1,9 @@
 use crate::BoardFile;
 
-use crate::{Board, Color, MoveData, Piece};
+use crate::{Color, Piece};
 use rand::Rng;
 
-enum Castling {
+pub enum Castling {
     CastlingOO,
     CastlingOOO,
     Castlingoo,
@@ -27,19 +27,30 @@ fn get_piece_idx(piece: (Color, Piece)) -> usize {
     }
 }
 
+#[derive(Debug, PartialEq, Clone)]
 pub struct Zobrist {
     // 12*64: Piece/square combo
     // 1: Side to move is black
     // 4: Castling rights
     // 8: File of en passant target square
     board_rnd_nums: [u64; 12 * 64 + 1 + 4 + 8],
-    hash: u64,
+    pub hash: u64,
+}
+
+pub struct ZobristData {
+    pub board_data: [Option<(Color, Piece)>; 64],
+    pub black_to_move: bool,
+    pub castling_w_00: bool,
+    pub castling_w_000: bool,
+    pub castling_b_00: bool,
+    pub castling_b_000: bool,
+    pub ep_target: Option<BoardFile>,
+
 }
 
 impl Zobrist {
-    pub fn new(board: &Board) -> Self {
+    pub fn new(z_data: ZobristData) -> Self {
         let mut board_rnd_nums: [u64; 12 * 64 + 1 + 4 + 8] = [0; 781];
-        board_rnd_nums[0] = 42;
 
         let mut hash = 0;
 
@@ -47,7 +58,7 @@ impl Zobrist {
             *num = rand::thread_rng().gen_range(0..=u64::MAX);
         }
 
-        for (idx, piece) in board.data.iter().enumerate() {
+        for (idx, piece) in z_data.board_data.iter().enumerate() {
             if let Some(p) = piece {
                 let piece_offset = get_piece_idx(*p);
                 hash ^= board_rnd_nums[idx * 12 + piece_offset];
@@ -55,30 +66,30 @@ impl Zobrist {
         }
 
         // Set black to move
-        if board.black_to_move {
+        if z_data.black_to_move {
             hash ^= board_rnd_nums[12 * 64 + 1];
         }
 
         // Set initial castling rights
-        if board.castling_w_00 {
+        if z_data.castling_w_00 {
             hash ^= board_rnd_nums[12 * 64 + 1 + 0];
 
         }
-        if board.castling_w_000 {
+        if z_data.castling_w_000 {
             hash ^= board_rnd_nums[12 * 64 + 1 + 1];
 
         }
-        if board.castling_w_00 {
+        if z_data.castling_w_00 {
             hash ^= board_rnd_nums[12 * 64 + 1 + 2];
 
         }
-        if board.castling_w_000 {
+        if z_data.castling_w_000 {
             hash ^= board_rnd_nums[12 * 64 + 1 + 3];
 
         }
 
         // Set ep target
-        if let Some(ep_file) = board.ep_target {
+        if let Some(ep_file) = z_data.ep_target {
             let ep_file_offset = match ep_file {
                 BoardFile::A => 0,
                 BoardFile::B => 1,

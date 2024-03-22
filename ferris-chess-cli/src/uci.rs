@@ -60,6 +60,7 @@ impl Uci {
             "stop" => self.handle_stop(),
             "ponderhit" => self.handle_ponderhit(&cmd_parts),
             "quit" => self.handle_quit(),
+            "d" => self.engine.board.print(),
             _ => (), // Ignore invalid inputs (UCI)
         }
     }
@@ -101,7 +102,7 @@ impl Uci {
             let fen = cmd.strip_prefix("position fen ").unwrap();
             self.engine.board = Board::from_fen(fen);
         } else {
-            panic!("Invalid position command");
+            panic!("Invalid position command: {}", position_cmd);
         }
 
         if let Some(m) = parts.next() {
