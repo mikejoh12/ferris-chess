@@ -7,29 +7,37 @@ use ferris_chess_board::*;
 #[test]
 fn perft_n_1() {
     let mut board = Board::from_fen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8");
+    let zobrist_init = board.zobrist.hash;
     let result = perft(1, &mut board);
     assert_eq!(result, 44);
+    assert_eq!(board.zobrist.hash, zobrist_init);
 }
 
 #[test]
 fn perft_n_2() {
     let mut board = Board::from_fen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8");
+    let zobrist_init = board.zobrist.hash;
     let result = perft(2, &mut board);
     assert_eq!(result, 1486);
+    assert_eq!(board.zobrist.hash, zobrist_init);
 }
 
 #[test]
 fn perft_n_3() {
     let mut board = Board::from_fen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8");
+    let zobrist_init = board.zobrist.hash;
     let result = perft(3, &mut board);
     assert_eq!(result, 62379);
+    assert_eq!(board.zobrist.hash, zobrist_init);
 }
 
 #[test]
 fn perft_n_4() {
     let mut board = Board::from_fen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8");
+    let zobrist_init = board.zobrist.hash;
     let result = perft(4, &mut board);
     assert_eq!(result, 2103487);
+    assert_eq!(board.zobrist.hash, zobrist_init);
 }
 
 #[ignore]

@@ -744,14 +744,17 @@ impl Board {
 
         // Set en passant target square on double pawn push
         if instr.piece == Piece::Pawn && instr.start_pos.abs_diff(instr.end_pos) == 16 {
+            if let Some(ep_file) = self.ep_target {
+                self.zobrist.invert_ep_file(ep_file);
+            }
             self.ep_target = Some(BoardFile::from_square(instr.start_pos));
             self.zobrist.invert_ep_file(BoardFile::from_square(instr.start_pos));
+
         } else {
             if let Some(ep_file) = self.ep_target {
                 self.zobrist.invert_ep_file(ep_file);
                 self.ep_target = None;
             }
-
         }
 
         // Castling
