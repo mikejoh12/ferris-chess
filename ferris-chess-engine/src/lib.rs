@@ -544,16 +544,34 @@ impl Engine {
                 self.board.unmake_move(&m)
             } else {
                 legal_moves += 1;
-                let score = -self.alpha_beta(depth - 1, ply + 1, -beta, -alpha, nodes);
+
+                let score = {
+                    if let Some(pos_data) = self.t_table.get(self.board.zobrist.hash, depth) {
+                        pos_data.score
+                    } else {
+                        -self.alpha_beta(depth - 1, ply + 1, -beta, -alpha, nodes)
+                    }
+                };
+                
                 self.board.unmake_move(&m);
 
+                let node: NodeType = {
+                    if score > alpha && score < beta {
+                        NodeType::PVNode
+                    } else if score >= beta {
+                        NodeType::CutNode
+                    } else {
+                        NodeType::AllNode
+                    }
+                };
+
+                // Replacement strategy - Always replace (for now)
                 self.t_table.insert(TTableData {
                     zobrist: self.board.zobrist.hash,
                     best_move: None,
                     depth,
                     score,
-                    // USe AllNode for now - Change later!!
-                    node: NodeType::AllNode,
+                    node,
                 });
 
                 if score >= beta {

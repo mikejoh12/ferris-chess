@@ -30,10 +30,15 @@ impl TranspositonTable {
         TranspositonTable { data, entries: 0 }
     }
 
-    pub fn get(&self, zobrist_hash: u64) -> Option<TTableData> {
+    pub fn get(&self, zobrist_hash: u64, cur_depth: usize) -> Option<TTableData> {
         if let Some(info) = self.data[zobrist_hash as usize % TABLE_SIZE] {
-            // Clone for now. Todo: Optimize
-            Some(info.clone())
+            if info.zobrist == zobrist_hash && cur_depth <= info.depth {
+                // Clone for now. Todo: Optimize
+                Some(info.clone())
+            } else {
+                None
+            }
+
         } else {
             None
         }
@@ -49,9 +54,15 @@ impl TranspositonTable {
 
         if self.data[idx].is_none() {
             self.entries += 1;
-        }
+            self.data[idx] = Some(data);
+            return
+        } 
 
-        // Strategy: Always overwrite
-        self.data[idx] = Some(data);
+        // Strategy: Overwrite if new search is deeper
+        if let Some(prev_data) = self.data[idx] {
+            if prev_data.depth < data.depth {
+                self.data[idx] = Some(data);
+            }
         }
+    }
 }
