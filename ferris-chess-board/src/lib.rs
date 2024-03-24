@@ -76,7 +76,7 @@ pub fn get_idx_from_square(uci_pos: &str) -> usize {
     rank_idx * 8 + file_idx
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct MoveData {
     pub start_pos: usize,
     pub end_pos: usize,
@@ -85,7 +85,7 @@ pub struct MoveData {
     pub capture: Option<Piece>,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum MoveType {
     Regular,
     Castling,

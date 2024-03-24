@@ -7,7 +7,7 @@ use std::{
 };
 
 mod transposition_table;
-use transposition_table::TranspositonTable;
+use transposition_table::{NodeType, TTableData, TranspositonTable};
 
 pub const MATED_VALUE: i16 = i16::MIN / 2;
 
@@ -100,7 +100,7 @@ pub struct Engine {
     stop_time: Instant,
 
     pub board: Board,
-    t_table: TranspositonTable,
+    pub t_table: TranspositonTable,
 }
 
 #[derive(PartialEq)]
@@ -426,10 +426,13 @@ impl Engine {
                 thread::sleep(Duration::from_millis(10));
 
                 match search_info.score {
+
                     Score::CentiPawns(cp) => {
+                        let hash_permill = ((self.t_table.entries as f64 / self.t_table.data.len() as f64) * 1000.0) as u64;
+
                         println!(
-                            "info depth {} nodes {} time {} score cp {}",
-                            search_info.depth, search_info.nodes, search_info.time, cp
+                            "info depth {} nodes {} time {} score cp {} hashfull {}",
+                            search_info.depth, search_info.nodes, search_info.time, cp, hash_permill
                         );
                     }
                     Score::Mate(m) => {
@@ -543,6 +546,15 @@ impl Engine {
                 legal_moves += 1;
                 let score = -self.alpha_beta(depth - 1, ply + 1, -beta, -alpha, nodes);
                 self.board.unmake_move(&m);
+
+                self.t_table.insert(TTableData {
+                    zobrist: self.board.zobrist.hash,
+                    best_move: None,
+                    depth,
+                    score,
+                    // USe AllNode for now - Change later!!
+                    node: NodeType::AllNode,
+                });
 
                 if score >= beta {
                     return beta;

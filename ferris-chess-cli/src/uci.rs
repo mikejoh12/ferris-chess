@@ -105,6 +105,9 @@ impl Uci {
             panic!("Invalid position command: {}", position_cmd);
         }
 
+        // Clear the transposition table between positions (for now)
+        self.engine.t_table.clear();
+
         if let Some(m) = parts.next() {
             for uci_move in m.split_ascii_whitespace() {
                 let m = MoveData::from_uci(&uci_move.to_string(), &self.engine.board);
