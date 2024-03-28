@@ -45,7 +45,6 @@ pub struct ZobristData {
     pub castling_b_00: bool,
     pub castling_b_000: bool,
     pub ep_target: Option<BoardFile>,
-
 }
 
 impl Zobrist {
@@ -73,19 +72,15 @@ impl Zobrist {
         // Set initial castling rights
         if z_data.castling_w_00 {
             hash ^= board_rnd_nums[12 * 64 + 1 + 0];
-
         }
         if z_data.castling_w_000 {
             hash ^= board_rnd_nums[12 * 64 + 1 + 1];
-
         }
         if z_data.castling_w_00 {
             hash ^= board_rnd_nums[12 * 64 + 1 + 2];
-
         }
         if z_data.castling_w_000 {
             hash ^= board_rnd_nums[12 * 64 + 1 + 3];
-
         }
 
         // Set ep target

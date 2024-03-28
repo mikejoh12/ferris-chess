@@ -426,13 +426,18 @@ impl Engine {
                 thread::sleep(Duration::from_millis(10));
 
                 match search_info.score {
-
                     Score::CentiPawns(cp) => {
-                        let hash_permill = ((self.t_table.entries as f64 / self.t_table.data.len() as f64) * 1000.0) as u64;
+                        let hash_permill = ((self.t_table.entries as f64
+                            / self.t_table.data.len() as f64)
+                            * 1000.0) as u64;
 
                         println!(
                             "info depth {} nodes {} time {} score cp {} hashfull {}",
-                            search_info.depth, search_info.nodes, search_info.time, cp, hash_permill
+                            search_info.depth,
+                            search_info.nodes,
+                            search_info.time,
+                            cp,
+                            hash_permill
                         );
                     }
                     Score::Mate(m) => {
@@ -545,14 +550,8 @@ impl Engine {
             } else {
                 legal_moves += 1;
 
-                let score = {
-                    if let Some(pos_data) = self.t_table.get(self.board.zobrist.hash, depth) {
-                        pos_data.score
-                    } else {
-                        -self.alpha_beta(depth - 1, ply + 1, -beta, -alpha, nodes)
-                    }
-                };
-                
+                let score = -self.alpha_beta(depth - 1, ply + 1, -beta, -alpha, nodes);
+
                 self.board.unmake_move(&m);
 
                 let node: NodeType = {

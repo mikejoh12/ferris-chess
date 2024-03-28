@@ -38,7 +38,6 @@ impl TranspositonTable {
             } else {
                 None
             }
-
         } else {
             None
         }
@@ -55,8 +54,8 @@ impl TranspositonTable {
         if self.data[idx].is_none() {
             self.entries += 1;
             self.data[idx] = Some(data);
-            return
-        } 
+            return;
+        }
 
         // Strategy: Overwrite if new search is deeper
         if let Some(prev_data) = self.data[idx] {
