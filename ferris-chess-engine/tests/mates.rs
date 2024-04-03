@@ -117,7 +117,7 @@ fn mate_in_3_for_black_with_rooks() {
 #[test]
 fn mate_in_3_for_white_with_knight_bishop_queen() {
     let mut engine = Engine::new("4r3/pk3pb1/1pNp2p1/3P1q2/2Qp1B1P/8/PPP2PP1/2K5 w - - 6 24");
-    
+
     // Give 10 seconds time for now due to somewhat complex position
     let go_input = "go wtime 10000 btime 10000 movestogo 1".to_string();
 

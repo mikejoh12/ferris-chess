@@ -21,9 +21,9 @@ pub struct GoCommand {
 impl GoCommand {
     pub fn new(go_input: &String) -> Self {
         // Set some default values in case go command doesn't include them
-        let mut wtime: usize = 10000;
-        let mut btime: usize = 10000;
-        let mut movestogo = 40;
+        let mut wtime: usize = 6000;
+        let mut btime: usize = 6000;
+        let mut movestogo = 1;
 
         let wtime_re = Regex::new(r"wtime \d*").unwrap();
         let btime_re = Regex::new(r"btime \d*").unwrap();
@@ -471,6 +471,7 @@ impl Engine {
     pub fn root_alpha_beta(&mut self, depth: usize) -> Option<SearchInfo> {
         let start: Instant = Instant::now();
         let mut nodes = 0;
+        let mut t_table_hits = 0;
 
         let mut alpha = i16::MIN + 1;
         let beta = i16::MAX - 1;
@@ -483,7 +484,24 @@ impl Engine {
         for m in &moves {
             self.board.make_move(&m);
             if !self.board.is_king_left_in_check() {
-                let ab_score = -self.alpha_beta(depth, 1, -beta, -alpha, &mut nodes);
+                //let ab_score = -self.alpha_beta(depth, 1, -beta, -alpha, &mut nodes, &mut t_table_hits);
+
+                let ab_score = match self.t_table.get(self.board.zobrist.hash, depth) {
+                    Some(tt_data) => {
+                        if tt_data.node_type == NodeType::Exact
+                            || tt_data.node_type == NodeType::LowerBound
+                        {
+                            t_table_hits += 1;
+                            tt_data.score
+                        } else {
+                            -self.alpha_beta(depth, 1, -beta, -alpha, &mut nodes, &mut t_table_hits)
+                        }
+                    }
+                    None => {
+                        -self.alpha_beta(depth, 1, -beta, -alpha, &mut nodes, &mut t_table_hits)
+                    }
+                };
+
                 legal_moves += 1;
 
                 if ab_score > alpha {
@@ -520,6 +538,11 @@ impl Engine {
             }
         }
 
+        println!(
+            "depth: {}, nodes: {} t_table entries: {} t_table hits: {}",
+            depth, nodes, self.t_table.entries, t_table_hits
+        );
+
         search_info
     }
 
@@ -528,9 +551,26 @@ impl Engine {
         depth: usize,
         ply: i16,
         mut alpha: i16,
-        beta: i16,
+        mut beta: i16,
         nodes: &mut usize,
+        t_table_hits: &mut usize,
     ) -> i16 {
+        let alpha_orig = alpha;
+
+        if let Some(node) = self.t_table.get(self.board.zobrist.hash, depth) {
+            *t_table_hits += 1;
+            if node.node_type == NodeType::Exact {
+                return node.score;
+            } else if node.node_type == NodeType::LowerBound {
+                alpha = alpha.max(node.score);
+            } else if node.node_type == NodeType::UpperBound {
+                beta = beta.min(node.score);
+            }
+            if alpha >= beta {
+                return node.score;
+            }
+        }
+
         *nodes += 1;
 
         if depth == 0 {
@@ -550,17 +590,18 @@ impl Engine {
             } else {
                 legal_moves += 1;
 
-                let score = -self.alpha_beta(depth - 1, ply + 1, -beta, -alpha, nodes);
+                let score =
+                    -self.alpha_beta(depth - 1, ply + 1, -beta, -alpha, nodes, t_table_hits);
 
                 self.board.unmake_move(&m);
 
-                let node: NodeType = {
-                    if score > alpha && score < beta {
-                        NodeType::PVNode
+                let node_type: NodeType = {
+                    if score <= alpha_orig {
+                        NodeType::UpperBound
                     } else if score >= beta {
-                        NodeType::CutNode
+                        NodeType::LowerBound
                     } else {
-                        NodeType::AllNode
+                        NodeType::Exact
                     }
                 };
 
@@ -570,7 +611,7 @@ impl Engine {
                     best_move: None,
                     depth,
                     score,
-                    node,
+                    node_type,
                 });
 
                 if score >= beta {

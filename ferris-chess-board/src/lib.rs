@@ -28,7 +28,7 @@ pub enum Piece {
 
 #[rustfmt::skip]
 #[derive(Debug, PartialEq, Clone, Copy)]
-enum BoardFile { A,B,C,D,E,F,G,H }
+pub enum BoardFile { A,B,C,D,E,F,G,H }
 
 impl BoardFile {
     pub fn from_square(square: usize) -> Self {
@@ -42,19 +42,6 @@ impl BoardFile {
             6 => BoardFile::G,
             7 => BoardFile::H,
             _ => panic!("Square should map to BoardFile"),
-        }
-    }
-
-    pub fn to_usize(&self) -> usize {
-        match *self {
-            BoardFile::A => 0,
-            BoardFile::B => 1,
-            BoardFile::C => 2,
-            BoardFile::D => 3,
-            BoardFile::E => 4,
-            BoardFile::F => 5,
-            BoardFile::G => 6,
-            BoardFile::H => 7,
         }
     }
 }
@@ -1622,6 +1609,20 @@ impl Board {
             false => &self.pieces_w,
             true => &self.pieces_b,
         };
+
+        /*
+        Very occassional bug happened in series of 10 games, after 5 games.
+        Only knights and pawns have moved when bug happens. Debug printout:
+
+        >ferris-chess-cli(2): position startpos moves g1f3 g8f6 b1c3 c7c5 e2e4 e7e6 e4e5 f6d5 c3d5 e6d5 c2c4 d5c4
+        >ferris-chess-cli(2): isready
+        <ferris-chess-cli(2): readyok
+        >ferris-chess-cli(2): go wtime 254810 btime 189391 movestogo 34
+        <ferris-chess-cli(2): panicked at ferris-chess-board/src/lib.rs:1622:25:
+        <ferris-chess-cli(2): No piece on expected square
+        >stockfish(3): isready
+        <stockfish(3): readyok
+        */
 
         for pos in positions {
             let position_moves: Vec<MoveData> = match self.data[*pos] {

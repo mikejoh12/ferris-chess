@@ -1,10 +1,10 @@
 use ferris_chess_board::MoveData;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum NodeType {
-    PVNode,
-    AllNode,
-    CutNode,
+    Exact,
+    LowerBound,
+    UpperBound,
 }
 
 #[derive(Clone, Copy)]
@@ -13,7 +13,7 @@ pub struct TTableData {
     pub best_move: Option<MoveData>,
     pub depth: usize,
     pub score: i16,
-    pub node: NodeType,
+    pub node_type: NodeType,
 }
 
 pub struct TranspositonTable {
@@ -53,15 +53,8 @@ impl TranspositonTable {
 
         if self.data[idx].is_none() {
             self.entries += 1;
-            self.data[idx] = Some(data);
-            return;
         }
 
-        // Strategy: Overwrite if new search is deeper
-        if let Some(prev_data) = self.data[idx] {
-            if prev_data.depth < data.depth {
-                self.data[idx] = Some(data);
-            }
-        }
+        self.data[idx] = Some(data);
     }
 }

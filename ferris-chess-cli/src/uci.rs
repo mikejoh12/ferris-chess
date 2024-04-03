@@ -105,7 +105,7 @@ impl Uci {
             panic!("Invalid position command: {}", position_cmd);
         }
 
-        // Clear the transposition table between positions (for now)
+        // Clear transposition table on each position
         self.engine.t_table.clear();
 
         if let Some(m) = parts.next() {
