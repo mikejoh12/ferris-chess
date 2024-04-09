@@ -2,6 +2,7 @@ pub mod uci;
 use crate::uci::Uci;
 use clap::{Parser, Subcommand};
 use ferris_chess_board::{self, perft::perft, Board};
+use ferris_chess_engine::Engine;
 use std::cell::RefCell;
 use std::io::Write;
 use std::process;
@@ -15,6 +16,8 @@ enum Command {
         /// The depth for perft
         depth: u8,
     },
+    /// Runs the perft performance test using transposition table
+    TtPerft { depth: u8 },
     /// Start the engine in UCI mode (default)
     Uci,
     /// Used during development for debugging
@@ -62,7 +65,8 @@ fn main() {
     init_logging();
 
     let args = Args::parse();
-    let mut board = ferris_chess_board::Board::from_fen(&args.fen);
+    //let mut board = ferris_chess_board::Board::from_fen(&args.fen);
+    let mut engine = ferris_chess_engine::Engine::new(&args.fen);
 
     match args.command {
         Some(Command::Perft { depth }) => {
@@ -70,11 +74,18 @@ fn main() {
                 eprintln!("Error: perft depth needs to be between 1-10");
                 process::exit(1);
             }
-            perft_results(&mut board, depth);
+            perft_results(&mut engine.board, depth);
         }
-        Some(Command::Uci) => handle_uci(&mut board),
-        Some(Command::Debug) => debug_board(&mut board),
-        None => handle_uci(&mut board),
+        Some(Command::TtPerft { depth }) => {
+            if depth == 0 || depth > 10 {
+                eprintln!("Error: perft depth needs to be between 1-10");
+                process::exit(1);
+            }
+            tt_perft_results(&mut engine, depth)
+        }
+        Some(Command::Uci) => handle_uci(&mut engine.board),
+        Some(Command::Debug) => debug_board(&mut engine.board),
+        None => handle_uci(&mut engine.board),
     }
 }
 
@@ -87,6 +98,19 @@ fn perft_results(board: &mut Board, depth: u8) {
     println!("Checking perft for n = {}", depth);
     let timing = Instant::now();
     let result = perft(depth, board);
+    let elapsed = timing.elapsed();
+    println!(
+        "Result: {} Time: {:?} Nodes / second: {}",
+        result,
+        elapsed,
+        (result as f64 / elapsed.as_secs_f64()) as usize
+    );
+}
+
+fn tt_perft_results(engine: &mut Engine, depth: u8) {
+    println!("Checking perft for n = {} using transposition table", depth);
+    let timing = Instant::now();
+    let result = engine.tt_perft(depth);
     let elapsed = timing.elapsed();
     println!(
         "Result: {} Time: {:?} Nodes / second: {}",

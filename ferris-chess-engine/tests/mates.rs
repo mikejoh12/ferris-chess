@@ -1,9 +1,6 @@
 use ferris_chess_board::{MoveData, MoveType, Piece, Square};
 use ferris_chess_engine::{Engine, GoCommand};
 
-// Current performance
-// n = 1-6 time is 7.74s with cargo test --release
-
 #[test]
 fn mate_in_1_for_black_using_rooks_() {
     let mut engine = Engine::new("8/4k3/1r6/8/8/8/r7/4K3 b - - 0 1");
@@ -118,8 +115,8 @@ fn mate_in_3_for_black_with_rooks() {
 fn mate_in_3_for_white_with_knight_bishop_queen() {
     let mut engine = Engine::new("4r3/pk3pb1/1pNp2p1/3P1q2/2Qp1B1P/8/PPP2PP1/2K5 w - - 6 24");
 
-    // Give 10 seconds time for now due to somewhat complex position
-    let go_input = "go wtime 10000 btime 10000 movestogo 1".to_string();
+    // Give 8 seconds time for now due to somewhat complex position
+    let go_input = "go wtime 8000 btime 8000 movestogo 1".to_string();
 
     let go_cmd = GoCommand::new(&go_input);
 

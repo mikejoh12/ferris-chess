@@ -66,7 +66,7 @@ impl Zobrist {
 
         // Set black to move
         if z_data.black_to_move {
-            hash ^= board_rnd_nums[12 * 64 + 1];
+            hash ^= board_rnd_nums[12 * 64];
         }
 
         // Set initial castling rights
@@ -76,10 +76,10 @@ impl Zobrist {
         if z_data.castling_w_000 {
             hash ^= board_rnd_nums[12 * 64 + 1 + 1];
         }
-        if z_data.castling_w_00 {
+        if z_data.castling_b_00 {
             hash ^= board_rnd_nums[12 * 64 + 1 + 2];
         }
-        if z_data.castling_w_000 {
+        if z_data.castling_b_000 {
             hash ^= board_rnd_nums[12 * 64 + 1 + 3];
         }
 

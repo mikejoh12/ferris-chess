@@ -12,7 +12,7 @@ pub struct TTableData {
     pub zobrist: u64,
     pub best_move: Option<MoveData>,
     pub depth: usize,
-    pub score: i16,
+    pub score: i32,
     pub node_type: NodeType,
 }
 
@@ -21,7 +21,7 @@ pub struct TranspositonTable {
     pub entries: u64,
 }
 
-const TABLE_SIZE: usize = 1_000_000;
+const TABLE_SIZE: usize = 10_000_000;
 
 impl TranspositonTable {
     pub fn new() -> Self {
@@ -30,9 +30,22 @@ impl TranspositonTable {
         TranspositonTable { data, entries: 0 }
     }
 
-    pub fn get(&self, zobrist_hash: u64, cur_depth: usize) -> Option<TTableData> {
+    pub fn get(&self, zobrist_hash: u64, depth: usize) -> Option<TTableData> {
         if let Some(info) = self.data[zobrist_hash as usize % TABLE_SIZE] {
-            if info.zobrist == zobrist_hash && cur_depth <= info.depth {
+            if info.zobrist == zobrist_hash && depth <= info.depth {
+                // Clone for now. Todo: Optimize
+                Some(info.clone())
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn get_perft_data(&self, zobrist_hash: u64, depth: usize) -> Option<TTableData> {
+        if let Some(info) = self.data[zobrist_hash as usize % TABLE_SIZE] {
+            if info.zobrist == zobrist_hash && depth == info.depth {
                 // Clone for now. Todo: Optimize
                 Some(info.clone())
             } else {
