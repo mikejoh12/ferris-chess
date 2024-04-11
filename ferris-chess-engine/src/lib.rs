@@ -101,15 +101,17 @@ pub struct Engine {
 
     pub board: Board,
     pub t_table: TranspositonTable,
+    pv: Vec<MoveData>,
+
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Copy, Clone)]
 enum Score {
     CentiPawns(i32),
     Mate(i32),
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Copy, Clone)]
 pub struct SearchInfo {
     depth: usize,
     nodes: usize,
@@ -392,7 +394,34 @@ impl Engine {
             stop_time: Instant::now(),
             board,
             t_table,
+            pv: vec![],
         }
+    }
+
+    fn update_pv(&mut self) {
+        self.pv = vec![];
+
+        while let Some(pos) = self.t_table.get_pv_move_data(self.board.zobrist.hash) {
+            if pos.node_type == NodeType::Exact {
+                if let Some(best_move) = pos.best_move {
+                    self.pv.push(best_move);
+                    self.board.make_move(&best_move);
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+
+        for rev_mv in self.pv.iter().rev() {
+            self.board.unmake_move(rev_mv);
+        }
+    }
+
+    fn print_pv(&self) {
+        let uci_moves = self.pv.iter().map(|m|m.to_uci_move(&self.board)).collect::<Vec<String>>().join(" ");
+        println!("info multipv 1 pv {}", uci_moves);
     }
 
     pub fn tt_perft(&mut self, depth: u8) -> usize {
@@ -463,6 +492,9 @@ impl Engine {
                 // first couple of plys. TODO: Add concurrency or asynchronous handling
                 thread::sleep(Duration::from_millis(10));
 
+                self.update_pv();
+                info = Some(search_info);
+
                 match search_info.score {
                     Score::CentiPawns(cp) => {
                         let hash_permill = ((self.t_table.entries as f64
@@ -477,16 +509,20 @@ impl Engine {
                             cp,
                             hash_permill
                         );
+                        self.print_pv();
+
                     }
                     Score::Mate(m) => {
                         println!(
                             "info depth {} nodes {} time {} score mate {}",
                             search_info.depth, search_info.nodes, search_info.time, m
                         );
+                        self.print_pv();
+                        break;
                     }
                 }
 
-                info = Some(search_info);
+
             }
 
             if self.is_stopped && info != None {
@@ -553,6 +589,7 @@ impl Engine {
                     };
 
                     alpha = ab_score;
+
                     search_info = Some(SearchInfo {
                         depth,
                         nodes,
@@ -560,6 +597,7 @@ impl Engine {
                         score,
                         move_data: m.clone(),
                     });
+
                 }
             }
             self.board.unmake_move(&m);
@@ -580,6 +618,14 @@ impl Engine {
             "depth: {}, nodes: {} t_table entries: {} t_table hits: {}",
             depth, nodes, self.t_table.entries, t_table_hits
         );
+
+        self.t_table.insert(TTableData {
+            zobrist: self.board.zobrist.hash,
+            best_move: Some(search_info.unwrap().move_data),
+            depth,
+            score: alpha,
+            node_type: NodeType::Exact
+        });
 
         search_info
     }
@@ -619,8 +665,8 @@ impl Engine {
         self.mvv_lva(&mut moves);
 
         let mut legal_moves = 0;
+        let mut max = i32::MIN+1;
 
-        let mut max = i32::MIN;
         for m in moves.drain(..) {
             self.board.make_move(&m);
             if self.board.is_king_left_in_check() {
@@ -646,7 +692,7 @@ impl Engine {
                 // Replacement strategy - Always replace (for now)
                 self.t_table.insert(TTableData {
                     zobrist: self.board.zobrist.hash,
-                    best_move: None,
+                    best_move: Some(m),
                     depth,
                     score,
                     node_type,

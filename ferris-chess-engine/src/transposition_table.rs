@@ -43,6 +43,19 @@ impl TranspositonTable {
         }
     }
 
+    pub fn get_pv_move_data(&self, zobrist_hash: u64) -> Option<TTableData> {
+        if let Some(info) = self.data[zobrist_hash as usize % TABLE_SIZE] {
+            if info.zobrist == zobrist_hash {
+                // Clone for now. Todo: Optimize
+                Some(info.clone())
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
     pub fn get_perft_data(&self, zobrist_hash: u64, depth: usize) -> Option<TTableData> {
         if let Some(info) = self.data[zobrist_hash as usize % TABLE_SIZE] {
             if info.zobrist == zobrist_hash && depth == info.depth {
