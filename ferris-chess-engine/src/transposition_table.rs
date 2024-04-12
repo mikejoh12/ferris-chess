@@ -21,7 +21,7 @@ pub struct TranspositonTable {
     pub entries: u64,
 }
 
-const TABLE_SIZE: usize = 10_000_000;
+const TABLE_SIZE: usize = 100_000;
 
 impl TranspositonTable {
     pub fn new() -> Self {
@@ -75,7 +75,18 @@ impl TranspositonTable {
     }
 
     pub fn insert(&mut self, data: TTableData) {
+
         let idx = data.zobrist as usize % TABLE_SIZE;
+
+        // If current node is Exact (PV) then always overwrite,
+        // otherwise don't overwrite existing Exact (PV) nodes
+        if data.node_type != NodeType::Exact {
+            if let Some(cached_data) = self.data[idx] {
+                if cached_data.node_type == NodeType::Exact {
+                    return;
+                }
+            }
+        }
 
         if self.data[idx].is_none() {
             self.entries += 1;

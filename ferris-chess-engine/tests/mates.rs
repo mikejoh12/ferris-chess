@@ -80,7 +80,7 @@ fn mate_in_2_for_black_knight_rook() {
 
 #[test]
 fn mate_in_3_for_black_with_rooks() {
-    let mut engine = Engine::new("4k3/1r1pn3/2r2p2/8/4p3/1P2P3/2P5/6K1 b - - 0 1");
+    let mut engine = Engine::new("4k3/pr1pn3/2r2p2/8/4p3/1P2P3/2P5/6K1 b - - 0 1");
     let go_input = "go wtime 5000 btime 5000 movestogo 1".to_string();
 
     let go_cmd = GoCommand::new(&go_input);

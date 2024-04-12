@@ -398,19 +398,22 @@ impl Engine {
         }
     }
 
-    fn update_pv(&mut self) {
+    fn update_pv(&mut self, depth: usize) {
         self.pv = vec![];
 
-        while let Some(pos) = self.t_table.get_pv_move_data(self.board.zobrist.hash) {
-            if pos.node_type == NodeType::Exact {
-                if let Some(best_move) = pos.best_move {
-                    self.pv.push(best_move);
-                    self.board.make_move(&best_move);
+        // Use depth limit to ensure not getting stuck in an infinite loop of PV nodes
+        for _ in 1..=depth {
+            if let Some(pos) = self.t_table.get_pv_move_data(self.board.zobrist.hash) {
+                if pos.node_type == NodeType::Exact {
+                    if let Some(best_move) = pos.best_move {
+                        self.pv.push(best_move);
+                        self.board.make_move(&best_move);
+                    } else {
+                        break;
+                    }
                 } else {
                     break;
                 }
-            } else {
-                break;
             }
         }
 
@@ -492,7 +495,7 @@ impl Engine {
                 // first couple of plys. TODO: Add concurrency or asynchronous handling
                 thread::sleep(Duration::from_millis(10));
 
-                self.update_pv();
+                self.update_pv(depth);
                 info = Some(search_info);
 
                 match search_info.score {
@@ -640,6 +643,7 @@ impl Engine {
         t_table_hits: &mut usize,
     ) -> i32 {
         let alpha_orig = alpha;
+        let mut best_move: Option<MoveData> = None;
 
         if let Some(node) = self.t_table.get(self.board.zobrist.hash, depth) {
             *t_table_hits += 1;
@@ -657,7 +661,7 @@ impl Engine {
 
         *nodes += 1;
 
-        if depth == 0 {
+        if depth == 1 {
             return self.quiesce(alpha, beta, nodes);
         }
 
@@ -679,31 +683,13 @@ impl Engine {
 
                 self.board.unmake_move(&m);
 
-                let node_type: NodeType = {
-                    if score <= alpha_orig {
-                        NodeType::UpperBound
-                    } else if score >= beta {
-                        NodeType::LowerBound
-                    } else {
-                        NodeType::Exact
-                    }
-                };
-
-                // Replacement strategy - Always replace (for now)
-                self.t_table.insert(TTableData {
-                    zobrist: self.board.zobrist.hash,
-                    best_move: Some(m),
-                    depth,
-                    score,
-                    node_type,
-                });
-
                 if score >= beta {
                     return beta;
                 }
 
                 if score > max {
                     max = score;
+                    best_move = Some(m);
                 }
 
                 alpha = alpha.max(score);
@@ -719,6 +705,25 @@ impl Engine {
             }
             return 0;
         }
+
+        let node_type: NodeType = {
+            if alpha <= alpha_orig {
+                NodeType::UpperBound
+            } else if alpha >= beta {
+                NodeType::LowerBound
+            } else {
+                NodeType::Exact
+            }
+        };
+
+        // Replacement strategy - Always replace (for now)
+        self.t_table.insert(TTableData {
+            zobrist: self.board.zobrist.hash,
+            best_move,
+            depth,
+            score: alpha,
+            node_type,
+        });
 
         max
     }
